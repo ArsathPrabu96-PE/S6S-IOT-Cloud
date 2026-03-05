@@ -1,0 +1,173 @@
+import React, { useState, useEffect } from 'react';
+import { Bell, AlertTriangle, CheckCircle, XCircle, Trash2, Eye, EyeOff } from 'lucide-react';
+import { api } from '../services/api';
+
+const AlertsPanel = ({ refreshKey }) => {
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [showAcknowledged, setShowAcknowledged] = useState(false);
+
+  useEffect(() => {
+    fetchAlerts();
+  }, [refreshKey]);
+
+  const fetchAlerts = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/alerts');
+      setAlerts(response.data);
+    } catch (err) {
+      console.error('Error fetching alerts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const acknowledgeAlert = async (alertId) => {
+    try {
+      await api.put(`/alerts/${alertId}/acknowledge`);
+      setAlerts(alerts.map(alert => 
+        alert.id === alertId ? { ...alert, acknowledged: true } : alert
+      ));
+    } catch (err) {
+      console.error('Error acknowledging alert:', err);
+    }
+  };
+
+  const deleteAlert = async (alertId) => {
+    try {
+      await api.delete(`/alerts/${alertId}`);
+      setAlerts(alerts.filter(alert => alert.id !== alertId));
+    } catch (err) {
+      console.error('Error deleting alert:', err);
+    }
+  };
+
+  const getAlertIcon = (severity) => {
+    switch (severity) {
+      case 'critical': return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'warning': return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+      case 'info': return <CheckCircle className="w-5 h-5 text-blue-500" />;
+      default: return <Bell className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'critical': return 'bg-red-900/30 border-red-500';
+      case 'warning': return 'bg-yellow-900/30 border-yellow-500';
+      case 'info': return 'bg-blue-900/30 border-blue-500';
+      default: return 'bg-gray-700/30 border-gray-500';
+    }
+  };
+
+  const filteredAlerts = alerts.filter(alert => {
+    if (!showAcknowledged && alert.acknowledged) return false;
+    if (filter !== 'all' && alert.severity !== filter) return false;
+    return true;
+  });
+
+  const unreadCount = alerts.filter(a => !a.acknowledged).length;
+
+  if (loading) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <Bell className="w-5 h-5 text-cyan-400" />
+          <h2 className="text-xl font-semibold text-white">Alerts</h2>
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+              {unreadCount}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowAcknowledged(!showAcknowledged)}
+            className="flex items-center gap-1 text-gray-400 hover:text-white text-sm"
+          >
+            {showAcknowledged ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {showAcknowledged ? 'Hide Acknowledged' : 'Show Acknowledged'}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {['all', 'critical', 'warning', 'info'].map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1 rounded-full text-sm capitalize ${
+              filter === f 
+                ? 'bg-cyan-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {filteredAlerts.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">
+          <Bell className="w-12 h-12 mx-auto mb-2 opacity-50" />
+          <p>No alerts to display</p>
+        </div>
+      ) : (
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {filteredAlerts.map(alert => (
+            <div
+              key={alert.id}
+              className={`p-4 rounded-lg border ${getSeverityColor(alert.severity)} ${
+                alert.acknowledged ? 'opacity-60' : ''
+              }`}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex gap-3">
+                  {getAlertIcon(alert.severity)}
+                  <div>
+                    <h4 className="text-white font-medium">{alert.title}</h4>
+                    <p className="text-gray-400 text-sm">{alert.message}</p>
+                    <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                      <span>{alert.device_name || 'System'}</span>
+                      <span>{new Date(alert.created_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {!alert.acknowledged && (
+                    <button
+                      onClick={() => acknowledgeAlert(alert.id)}
+                      className="p-1 hover:bg-gray-600 rounded"
+                      title="Acknowledge"
+                    >
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteAlert(alert.id)}
+                    className="p-1 hover:bg-gray-600 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AlertsPanel;

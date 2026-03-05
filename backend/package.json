@@ -1,0 +1,50 @@
+{
+  "name": "s6s-iot-backend",
+  "version": "1.0.0",
+  "description": "S6S IoT Platform Backend API",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:migrate": "node src/config/migrate.js",
+    "db:seed": "node src/config/seed.js",
+    "mqtt:start": "node src/services/mqttBroker.js",
+    "test": "jest",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "iot",
+    "mqtt",
+    "esp32",
+    "esp8266",
+    "saas"
+  ],
+  "author": "S6S IoT",
+  "license": "MIT",
+  "dependencies": {
+    "aedes": "^0.46.3",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mqtt": "^5.3.4",
+    "nanoid": "^5.0.4",
+    "pg": "^8.11.3",
+    "socket.io": "^4.7.2",
+    "uuid": "^9.0.1",
+    "ws": "^8.16.0",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
