@@ -1,0 +1,6 @@
+{
+  "tailwindCSS.experimental": {
+    "configVersion": "3"
+  },
+  "css.lint.unknownAtRules": "ignore"
+}

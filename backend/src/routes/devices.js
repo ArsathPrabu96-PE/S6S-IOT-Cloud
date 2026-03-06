@@ -2,6 +2,16 @@ import express from 'express';
 import { body, query, validationResult } from 'express-validator';
 import Device from '../models/Device.js';
 import { authenticate } from '../middleware/auth.js';
+import {
+  getAllMicrocontrollers,
+  getMicrocontrollerInfo,
+  getMicrocontrollersByManufacturer,
+  getMicrocontrollersWithWiFi,
+  getMicrocontrollersWithBluetooth,
+  generateFirmware,
+  checkMicrocontrollerCompatibility,
+  getProgrammingGuide,
+} from '../utils/microcontroller.js';
 
 const router = express.Router();
 
@@ -363,6 +373,246 @@ router.get('/:id/sensors', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get sensors',
+    });
+  }
+});
+
+// ============================================
+// MICROCONTROLLER ROUTES
+// ============================================
+
+// @route   GET /api/devices/microcontrollers
+// @desc    Get all supported microcontrollers
+// @access  Private
+router.get('/microcontrollers', async (req, res) => {
+  try {
+    const { filter } = req.query;
+    
+    let microcontrollers;
+    switch (filter) {
+      case 'wifi':
+        microcontrollers = getMicrocontrollersWithWiFi();
+        break;
+      case 'bluetooth':
+        microcontrollers = getMicrocontrollersWithBluetooth();
+        break;
+      case 'manufacturer':
+        microcontrollers = getMicrocontrollersByManufacturer();
+        break;
+      default:
+        microcontrollers = getAllMicrocontrollers();
+    }
+    
+    res.json({
+      success: true,
+      data: microcontrollers,
+    });
+  } catch (error) {
+    console.error('Get microcontrollers error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get microcontrollers',
+    });
+  }
+});
+
+// @route   GET /api/devices/microcontrollers/:slug
+// @desc    Get microcontroller details by slug
+// @access  Private
+router.get('/microcontrollers/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const microcontroller = getMicrocontrollerInfo(slug);
+    
+    if (!microcontroller) {
+      return res.status(404).json({
+        success: false,
+        error: 'Microcontroller not found',
+      });
+    }
+    
+    // Get programming guide
+    const guide = getProgrammingGuide(slug);
+    
+    res.json({
+      success: true,
+      data: {
+        ...microcontroller,
+        programmingGuide: guide,
+      },
+    });
+  } catch (error) {
+    console.error('Get microcontroller error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get microcontroller',
+    });
+  }
+});
+
+// @route   POST /api/devices/microcontrollers/:slug/firmware
+// @desc    Generate firmware for a specific microcontroller
+// @access  Private
+router.post(
+  '/microcontrollers/:slug/firmware',
+  [
+    body('sensors').isArray().withMessage('Sensors array is required'),
+    body('sensors.*.name').notEmpty().withMessage('Sensor name is required'),
+    body('sensors.*.identifier').notEmpty().withMessage('Sensor identifier is required'),
+    body('sensors.*.pin').optional().isInt(),
+  ],
+  handleValidation,
+  async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const { sensors } = req.body;
+      const mqttServer = req.body.mqttServer || process.env.MQTT_SERVER || 'localhost';
+      
+      // Check if microcontroller exists
+      const microcontroller = getMicrocontrollerInfo(slug);
+      if (!microcontroller) {
+        return res.status(404).json({
+          success: false,
+          error: 'Microcontroller not found',
+        });
+      }
+      
+      // Get device if provided (for MQTT credentials)
+      const deviceUuid = req.body.deviceUuid || `DEV-${Date.now()}`;
+      const mqttUsername = req.body.mqttUsername || deviceUuid;
+      const mqttPassword = req.body.mqttPassword || 'mqtt_password';
+      
+      const firmware = generateFirmware(slug, {
+        deviceUuid,
+        mqttUsername,
+        mqttPassword,
+        mqttServer,
+        sensors,
+      });
+      
+      res.json({
+        success: true,
+        data: {
+          microcontroller: slug,
+          microcontrollerName: microcontroller.name,
+          programmingLanguage: microcontroller.programmingLanguages[0],
+          firmware,
+        },
+      });
+    } catch (error) {
+      console.error('Generate firmware error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate firmware',
+      });
+    }
+  }
+);
+
+// @route   POST /api/devices/microcontrollers/:slug/check
+// @desc    Check microcontroller compatibility with required features
+// @access  Private
+router.post(
+  '/microcontrollers/:slug/check',
+  [
+    body('requiresWiFi').optional().isBoolean(),
+    body('requiresBluetooth').optional().isBoolean(),
+  ],
+  handleValidation,
+  async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const { requiresWiFi, requiresBluetooth } = req.body;
+      
+      const result = checkMicrocontrollerCompatibility(slug, {
+        requiresWiFi,
+        requiresBluetooth,
+      });
+      
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error('Check compatibility error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to check compatibility',
+      });
+    }
+  }
+);
+
+// @route   GET /api/devices/microcontrollers/:slug/firmware/download
+// @desc    Download firmware file for microcontroller
+// @access  Private
+router.get('/microcontrollers/:slug/firmware/download', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { deviceUuid, mqttUsername, mqttPassword, mqttServer, sensors } = req.query;
+    
+    const microcontroller = getMicrocontrollerInfo(slug);
+    if (!microcontroller) {
+      return res.status(404).json({
+        success: false,
+        error: 'Microcontroller not found',
+      });
+    }
+    
+    const firmware = generateFirmware(slug, {
+      deviceUuid: deviceUuid || 'DEVICE_UUID',
+      mqttUsername: mqttUsername || 'mqtt_username',
+      mqttPassword: mqttPassword || 'mqtt_password',
+      mqttServer: mqttServer || 'mqtt.example.com',
+      sensors: (() => {
+        if (!sensors) {
+          return [{ name: 'Temperature', identifier: 'temperature', pin: 34 }];
+        }
+        try {
+          return JSON.parse(sensors);
+        } catch (parseError) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid sensors JSON format',
+          });
+        }
+      })(),
+    });
+    
+    // Set appropriate content type based on microcontroller
+    const extensions = {
+      'ESP32': '.ino',
+      'ESP32-S2': '.ino',
+      'ESP32-S3': '.ino',
+      'ESP32-C3': '.ino',
+      'ESP8266': '.ino',
+      'arduino-uno-wifi': '.ino',
+      'arduino-nano-33-iot': '.ino',
+      'arduino-mkr-wifi-1010': '.ino',
+      'raspberry-pi-pico': '.ino',
+      'raspberry-pi-pico-w': '.ino',
+      'stm32-f401re': '.ino',
+      'stm32-l476rg': '.ino',
+      'stm32-wb55': '.ino',
+      'nrf52840': '.ino',
+      'nrf52832': '.ino',
+      'cc3220': '.ino',
+      'msp432': '.ino',
+      'atmega4809': '.ino',
+      'samd21': '.ino',
+    };
+    
+    const extension = extensions[slug] || '.ino';
+    const filename = `s6s_firmware_${slug}${extension}`;
+    
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(firmware);
+  } catch (error) {
+    console.error('Download firmware error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to download firmware',
     });
   }
 });

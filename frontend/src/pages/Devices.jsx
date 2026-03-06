@@ -4,12 +4,15 @@ import { devicesAPI } from '../services/api';
 import { useDeviceStore } from '../context/store';
 import wsService from '../services/websocket';
 import { format } from 'date-fns';
+import MicrocontrollerSelector from '../components/MicrocontrollerSelector';
+import { DEVICE_TYPES } from '../data/deviceTypes';
 
 const Devices = () => {
   const { devices, pagination, setDevices, setLoading } = useDeviceStore();
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [deviceTypes, setDeviceTypes] = useState([]);
+  const [showMcSelector, setShowMcSelector] = useState(false);
+  const [deviceTypes, setDeviceTypes] = useState(DEVICE_TYPES);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -21,7 +24,6 @@ const Devices = () => {
 
   useEffect(() => {
     loadDevices();
-    loadDeviceTypes();
     
     // Listen for real-time status updates
     wsService.on('device_status', handleDeviceStatusUpdate);
@@ -43,12 +45,19 @@ const Devices = () => {
     }
   };
 
-  const loadDeviceTypes = async () => {
+  const loadMicrocontrollers = async () => {
     try {
-      const response = await devicesAPI.getTypes();
-      setDeviceTypes(response.data.data);
+      // Load all microcontrollers as device types
+      const response = await devicesAPI.getMicrocontrollers('all');
+      // Transform microcontrollers to device types format
+      const mcTypes = response.data.data.map(mc => ({
+        id: mc.slug,
+        name: mc.name,
+        manufacturer: mc.manufacturer,
+      }));
+      setDeviceTypes(mcTypes);
     } catch (error) {
-      console.error('Failed to load device types:', error);
+      console.error('Failed to load microcontrollers:', error);
     }
   };
 
@@ -87,17 +96,30 @@ const Devices = () => {
           <h1 className="text-2xl font-bold text-gray-900">Devices</h1>
           <p className="text-gray-500">Manage your IoT devices</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="btn btn-primary"
-        >
-          <span className="flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Device
-          </span>
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowMcSelector(true)}
+            className="btn btn-secondary"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              Get Firmware
+            </span>
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="btn btn-primary"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Device
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Devices Grid */}
@@ -155,7 +177,7 @@ const Devices = () => {
                   <option value="">Select type...</option>
                   {deviceTypes.map((type) => (
                     <option key={type.id} value={type.id}>
-                      {type.name}
+                      {type.name} {type.manufacturer ? `(${type.manufacturer})` : ''}
                     </option>
                   ))}
                 </select>
@@ -207,6 +229,17 @@ const Devices = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Microcontroller Selector Modal */}
+      {showMcSelector && (
+        <MicrocontrollerSelector
+          onSelect={(mc) => {
+            console.log('Selected microcontroller:', mc);
+            setShowMcSelector(false);
+          }}
+          onClose={() => setShowMcSelector(false)}
+        />
       )}
     </div>
   );

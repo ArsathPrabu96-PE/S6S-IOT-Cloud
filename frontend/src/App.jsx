@@ -8,6 +8,8 @@ import Devices from './pages/Devices';
 import DeviceDetail from './pages/DeviceDetail';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
+import Developer from './pages/Developer';
+import OnboardingWizard from './components/OnboardingWizard';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -68,11 +70,13 @@ function App() {
           <Route path="devices/:id" element={<DeviceDetail />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="developer" element={<Developer />} />
         </Route>
         
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      <OnboardingWizard />
     </Router>
   );
 }

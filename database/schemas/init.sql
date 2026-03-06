@@ -425,10 +425,34 @@ INSERT INTO subscription_plans (name, slug, description, price_monthly, price_ye
 ('Professional', 'professional', 'For growing businesses', 29.99, 299.99, 100, 10, 90, '{"alerts": true, "dashboard": true, "api_access": true, "export_data": true, "white_label": false, "priority_support": false}', 3),
 ('Enterprise', 'enterprise', 'For large-scale deployments', 99.99, 999.99, -1, -1, 365, '{"alerts": true, "dashboard": true, "api_access": true, "export_data": true, "white_label": true, "priority_support": true, "dedicated_support": true}', 4);
 
--- Insert default device types
+-- Insert default device types (Supported Microcontrollers)
 INSERT INTO device_types (name, slug, manufacturer, model, description, default_config) VALUES
-('ESP32', 'esp32', 'Espressif', 'ESP32', 'Powerful WiFi + Bluetooth combo microcontroller', '{"sensors": ["temperature", "humidity", "pressure"], "wifi": true, "ble": true}'),
-('ESP8266', 'esp8266', 'Espressif', 'ESP8266', 'Low-cost WiFi microcontroller', '{"sensors": ["temperature", "humidity"], "wifi": true}');
+-- Espressif Systems
+('ESP32', 'esp32', 'Espressif', 'ESP32', 'Powerful WiFi + Bluetooth combo microcontroller', '{"sensors": ["temperature", "humidity", "pressure"], "wifi": true, "ble": true, "flash_size": "4MB", "ram": "520KB"}'),
+('ESP32-S2', 'esp32-s2', 'Espressif', 'ESP32-S2', 'Single-core WiFi MCU with USB OTG', '{"sensors": ["temperature", "humidity"], "wifi": true, "usb": true, "flash_size": "4MB", "ram": "320KB"}'),
+('ESP32-S3', 'esp32-s3', 'Espressif', 'ESP32-S3', 'Dual-core WiFi + Bluetooth LE with AI acceleration', '{"sensors": ["temperature", "humidity", "acceleration"], "wifi": true, "ble": true, "usb": true, "flash_size": "8MB", "ram": "512KB"}'),
+('ESP32-C3', 'esp32-c3', 'Espressif', 'ESP32-C3', 'RISC-V based WiFi + Bluetooth LE microcontroller', '{"sensors": ["temperature", "humidity"], "wifi": true, "ble": true, "flash_size": "4MB", "ram": "400KB"}'),
+('ESP8266', 'esp8266', 'Espressif', 'ESP8266', 'Low-cost WiFi microcontroller', '{"sensors": ["temperature", "humidity"], "wifi": true, "flash_size": "4MB", "ram": "80KB"}'),
+-- Arduino
+('Arduino Uno WiFi', 'arduino-uno-wifi', 'Arduino', 'UNO WiFi Rev2', 'ATmega4809 with WiFi and Bluetooth', '{"sensors": ["temperature", "humidity"], "wifi": true, "ble": true, "voltage": "5V"}'),
+('Arduino Nano 33 IoT', 'arduino-nano-33-iot', 'Arduino', 'Nano 33 IoT', 'SAMD21 with WiFi and Bluetooth', '{"sensors": ["temperature", "humidity", "acceleration"], "wifi": true, "ble": true, "voltage": "3.3V"}'),
+('Arduino MKR WiFi 1010', 'arduino-mkr-wifi-1010', 'Arduino', 'MKR WiFi 1010', 'SAMD21 with WiFi and crypto', '{"sensors": ["temperature", "humidity"], "wifi": true, "voltage": "3.3V"}'),
+-- Raspberry Pi
+('Raspberry Pi Pico', 'raspberry-pi-pico', 'Raspberry Pi', 'RP2040', 'Dual-core ARM Cortex-M0+ microcontroller', '{"sensors": ["temperature", "humidity"], "wifi": false, "ble": false, "flash_size": "2MB", "ram": "264KB"}'),
+('Raspberry Pi Pico W', 'raspberry-pi-pico-w', 'Raspberry Pi', 'RP2040', 'Pico with WiFi and Bluetooth', '{"sensors": ["temperature", "humidity"], "wifi": true, "ble": true, "flash_size": "2MB", "ram": "264KB"}'),
+-- STMicroelectronics (STM32)
+('STM32 F401RE', 'stm32-f401re', 'STMicroelectronics', 'STM32F401RE', 'ARM Cortex-M4 with 84MHz', '{"sensors": ["temperature", "humidity"], "wifi": false, "voltage": "3.3V", "flash_size": "512KB", "ram": "96KB"}'),
+('STM32 L476RG', 'stm32-l476rg', 'STMicroelectronics', 'STM32L476RG', 'Ultra-low-power ARM Cortex-M4', '{"sensors": ["temperature", "humidity"], "wifi": false, "voltage": "3.3V", "flash_size": "1MB", "ram": "128KB"}'),
+('STM32WB55', 'stm32-wb55', 'STMicroelectronics', 'STM32WB55', 'Dual-core Bluetooth LE MCU', '{"sensors": ["temperature", "humidity"], "wifi": false, "ble": true, "voltage": "3.3V", "flash_size": "512KB", "ram": "256KB"}'),
+-- Nordic Semiconductor
+('nRF52840', 'nrf52840', 'Nordic Semiconductor', 'nRF52840', 'Powerful Bluetooth LE ARM Cortex-M4', '{"sensors": ["temperature", "humidity"], "ble": true, "voltage": "3.3V", "flash_size": "1MB", "ram": "256KB"}'),
+('nRF52832', 'nrf52832', 'Nordic Semiconductor', 'nRF52832', 'Bluetooth LE ARM Cortex-M4', '{"sensors": ["temperature", "humidity"], "ble": true, "voltage": "3.3V", "flash_size": "512KB", "ram": "64KB"}'),
+-- Texas Instruments
+('CC3220', 'cc3220', 'Texas Instruments', 'CC3220', 'Single-chip WiFi MCU', '{"sensors": ["temperature", "humidity"], "wifi": true, "voltage": "3.3V", "flash_size": "2MB", "ram": "256KB"}'),
+('MSP432', 'msp432', 'Texas Instruments', 'MSP432P401R', 'Ultra-low-power ARM Cortex-M4', '{"sensors": ["temperature", "humidity"], "wifi": false, "voltage": "3.3V", "flash_size": "256KB", "ram": "64KB"}'),
+-- Microchip
+('ATmega4809', 'atmega4809', 'Microchip', 'ATmega4809', '8-bit AVR with enhanced peripherals', '{"sensors": ["temperature", "humidity"], "wifi": false, "voltage": "5V", "flash_size": "48KB", "ram": "6KB"}'),
+('SAMD21', 'samd21', 'Microchip', 'SAMD21G18', '32-bit ARM Cortex-M0+', '{"sensors": ["temperature", "humidity"], "wifi": false, "voltage": "3.3V", "flash_size": "256KB", "ram": "32KB"}');
 
 -- Insert default device protocols
 INSERT INTO device_protocols (name, slug, description, port, tls_port) VALUES
