@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOnboarding, ONBOARDING_STEPS } from '../components/OnboardingWizard';
 import Tooltip from '../components/Tooltip';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 // Load from localStorage or use defaults
 const loadFromStorage = (key, defaultValue) => {
@@ -94,6 +95,7 @@ const Developer = () => {
   const [tooltip, setTooltip] = useState(null);
   const [selectedPlatform, setSelectedPlatform] = useState('s6s');
   const [liveData, setLiveData] = useState({});
+  const [deleteDialogState, setDeleteDialogState] = useState({ isOpen: false, item: null, type: null });
 
   // Delete handlers - with localStorage persistence
   const handleDeleteEndpoint = (id) => {
@@ -130,6 +132,43 @@ const Developer = () => {
     const updated = ingestionPatterns.filter(p => p.id !== id);
     setIngestionPatterns(updated);
     saveToStorage('ingestionPatterns', updated);
+  };
+
+  // Delete dialog handlers
+  const showDeleteDialog = (item, type) => {
+    setDeleteDialogState({ isOpen: true, item, type });
+  };
+
+  const executeDelete = () => {
+    const { item, type } = deleteDialogState;
+    setDeleteDialogState({ isOpen: false, item: null, type: null });
+    
+    switch (type) {
+      case 'endpoint':
+        handleDeleteEndpoint(item.id);
+        break;
+      case 'apikey':
+        handleDeleteApiKey(item.id);
+        break;
+      case 'webhook':
+        handleDeleteWebhook(item.id);
+        break;
+      case 'datatemplate':
+        handleDeleteDataTemplate(item.id);
+        break;
+      case 'widgettemplate':
+        handleDeleteWidgetTemplate(item.id);
+        break;
+      case 'ingestionpattern':
+        handleDeleteIngestionPattern(item.id);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialogState({ isOpen: false, item: null, type: null });
   };
 
   return (
@@ -258,11 +297,7 @@ const Developer = () => {
                     </span>
                     <button className="p-2 hover:bg-slate-700 rounded-lg">✏️</button>
                     <button 
-                      onClick={() => {
-                        if (window.confirm(`Are you sure you want to delete "${endpoint.name}"?`)) {
-                          handleDeleteEndpoint(endpoint.id);
-                        }
-                      }}
+                      onClick={() => showDeleteDialog(endpoint, 'endpoint')}
                       className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition-colors"
                       title="Delete Endpoint"
                     >
@@ -343,11 +378,7 @@ const Developer = () => {
                       <div className="flex gap-2">
                         <button className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm text-white">Copy</button>
                         <button 
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to revoke "${key.name}"?`)) {
-                              handleDeleteApiKey(key.id);
-                            }
-                          }}
+                          onClick={() => showDeleteDialog(key, 'apikey')}
                           className="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-400 rounded text-sm"
                         >
                           Revoke
@@ -424,11 +455,7 @@ const Developer = () => {
                     </span>
                     <button className="p-2 hover:bg-slate-700 rounded-lg">🧪</button>
                     <button 
-                      onClick={() => {
-                        if (window.confirm(`Are you sure you want to delete "${webhook.name}"?`)) {
-                          handleDeleteWebhook(webhook.id);
-                        }
-                      }}
+                      onClick={() => showDeleteDialog(webhook, 'webhook')}
                       className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition-colors"
                       title="Delete Webhook"
                     >
@@ -473,11 +500,7 @@ const Developer = () => {
                 <div className="pt-3 border-t border-slate-700 flex items-center justify-between">
                   <span className="text-xs text-slate-500">Parser: {template.parser}</span>
                   <button 
-                    onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete "${template.name}"?`)) {
-                        handleDeleteDataTemplate(template.id);
-                      }
-                    }}
+                    onClick={() => showDeleteDialog(template, 'datatemplate')}
                     className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition-colors"
                     title="Delete Template"
                   >
@@ -629,11 +652,7 @@ const Developer = () => {
                   <div className="flex items-center gap-1">
                     <button className="p-1 hover:bg-slate-700 rounded transition-colors duration-200 hover:scale-110">✏️</button>
                     <button 
-                      onClick={() => {
-                        if (window.confirm(`Are you sure you want to delete "${template.name}"?`)) {
-                          handleDeleteWidgetTemplate(template.id);
-                        }
-                      }}
+                      onClick={() => showDeleteDialog(template, 'widgettemplate')}
                       className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition-all duration-200 hover:scale-110"
                       title="Delete Template"
                     >
@@ -973,11 +992,7 @@ const Developer = () => {
                       <div className="flex gap-2">
                         <button className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm text-white">Edit</button>
                         <button 
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to delete "${pattern.name}"?`)) {
-                              handleDeleteIngestionPattern(pattern.id);
-                            }
-                          }}
+                          onClick={() => showDeleteDialog(pattern, 'ingestionpattern')}
                           className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition-colors"
                           title="Delete Pattern"
                         >
@@ -1531,6 +1546,25 @@ const Developer = () => {
           </div>
         </div>
       )}
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={deleteDialogState.isOpen}
+        title={
+          deleteDialogState.type === 'endpoint' ? 'Delete Endpoint' :
+          deleteDialogState.type === 'apikey' ? 'Revoke API Key' :
+          deleteDialogState.type === 'webhook' ? 'Delete Webhook' :
+          deleteDialogState.type === 'datatemplate' ? 'Delete Data Template' :
+          deleteDialogState.type === 'widgettemplate' ? 'Delete Widget Template' :
+          deleteDialogState.type === 'ingestionpattern' ? 'Delete Ingestion Pattern' :
+          'Delete Item'
+        }
+        message={`Are you sure you want to ${deleteDialogState.type === 'apikey' ? 'revoke' : 'delete'} "${deleteDialogState.item?.name}"? This action cannot be undone.`}
+        itemName={deleteDialogState.item?.name}
+        onConfirm={executeDelete}
+        onCancel={cancelDelete}
+        confirmText={deleteDialogState.type === 'apikey' ? 'Revoke' : 'Delete'}
+        cancelText="Cancel"
+      />
     </div>
   );
 };

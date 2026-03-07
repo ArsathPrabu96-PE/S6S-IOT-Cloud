@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { projectsAPI } from '../services/api';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 const ProjectCard = ({ project, onEdit, onDelete, onView }) => {
   const categoryIcons = {
@@ -208,6 +209,7 @@ const Projects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editProject, setEditProject] = useState(null);
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -260,14 +262,14 @@ const Projects = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteProject = async (project) => {
-    if (window.confirm(`Are you sure you want to delete "${project.name}"?`)) {
-      try {
-        await projectsAPI.delete(project.id);
-        await fetchData();
-      } catch (error) {
-        console.error('Failed to delete project:', error);
-      }
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    try {
+      await projectsAPI.delete(projectToDelete.id);
+      await fetchData();
+      setProjectToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete project:', error);
     }
   };
 
@@ -377,7 +379,7 @@ const Projects = () => {
               key={project.id}
               project={project}
               onEdit={handleEditProject}
-              onDelete={handleDeleteProject}
+              onDelete={(p) => setProjectToDelete(p)}
               onView={handleViewProject}
             />
           ))}
@@ -411,6 +413,17 @@ const Projects = () => {
         categories={categories}
         isEditing={isEditing}
         editProject={editProject}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={!!projectToDelete}
+        title="Delete Project"
+        message="Are you sure you want to delete this project? All associated devices and data will be permanently removed. This action cannot be undone."
+        itemName={projectToDelete?.name}
+        confirmText="Delete Project"
+        onConfirm={handleDeleteProject}
+        onCancel={() => setProjectToDelete(null)}
       />
     </div>
   );

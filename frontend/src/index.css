@@ -143,6 +143,316 @@
 }
 
 /* ============================================
+   Sidebar Navigation Smoke/Mist Hover Effects
+   ============================================ */
+
+/* Flowing gradient smoke effect */
+@keyframes smoke-flow {
+  0% {
+    background-position: 0% 50%;
+    opacity: 0;
+    transform: translateY(10px) scaleX(0.8);
+  }
+  30% {
+    opacity: 0.7;
+  }
+  70% {
+    opacity: 0.5;
+  }
+  100% {
+    background-position: 100% 50%;
+    opacity: 0;
+    transform: translateY(-20px) scaleX(1.2);
+  }
+}
+
+/* Mist cloud spread effect */
+@keyframes mist-spread {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(10px);
+    filter: blur(15px);
+  }
+  40% {
+    opacity: 0.6;
+    transform: scale(1.1) translateY(0);
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5) translateY(-15px);
+    filter: blur(12px);
+  }
+}
+
+/* Rising vapor effect */
+@keyframes vapor-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(15px) scaleX(0.5);
+    filter: blur(10px);
+  }
+  20% {
+    opacity: 0.7;
+  }
+  80% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scaleX(1.5);
+    filter: blur(15px);
+  }
+}
+
+/* Gradient shimmer effect */
+@keyframes shimmer-flow {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Sidebar nav smoke container */
+.nav-smoke-container {
+  position: absolute;
+  inset: -20px;
+  overflow: hidden;
+  border-radius: 1rem;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Smoke layer - flows across the nav item */
+.nav-smoke-layer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(6, 182, 212, 0.3) 25%, 
+    rgba(168, 85, 247, 0.3) 50%,
+    rgba(236, 72, 153, 0.3) 75%,
+    transparent 100%);
+  background-size: 200% 100%;
+  opacity: 0;
+  filter: blur(8px);
+  transition: opacity 0.3s ease;
+}
+
+.group:hover .nav-smoke-layer {
+  opacity: 1;
+  animation: smoke-flow 2s ease-out forwards;
+}
+
+.nav-smoke-layer.active {
+  animation: smoke-flow 2s ease-out forwards;
+  opacity: 1;
+}
+
+/* Mist layer - expands from center */
+.nav-mist-layer {
+  position: absolute;
+  width: 150%;
+  height: 150%;
+  top: -25%;
+  left: -25%;
+  background: radial-gradient(ellipse at center,
+    rgba(6, 182, 212, 0.4) 0%,
+    rgba(168, 85, 247, 0.3) 30%,
+    transparent 70%);
+  opacity: 0;
+  transform: scale(0.5);
+  filter: blur(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.group:hover .nav-mist-layer,
+.nav-mist-layer.active {
+  animation: mist-spread 1.8s ease-out forwards;
+  opacity: 1;
+}
+
+/* Vapor layer - rises upward */
+.nav-vapor-layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: linear-gradient(to top,
+    rgba(6, 182, 212, 0.2) 0%,
+    rgba(168, 85, 247, 0.15) 50%,
+    transparent 100%);
+  opacity: 0;
+  filter: blur(5px);
+  transition: opacity 0.4s ease;
+}
+
+.group:hover .nav-vapor-layer,
+.nav-vapor-layer.active {
+  animation: vapor-rise 2.5s ease-out forwards;
+  opacity: 1;
+}
+
+/* Glow pulse effect */
+.nav-glow-effect {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.group:hover .nav-glow-effect,
+.nav-glow-effect.active {
+  animation: glowPulse 2s ease-in-out infinite;
+  opacity: 1;
+}
+
+/* Shimmer effect */
+.nav-shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%);
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.group:hover .nav-shimmer,
+.nav-shimmer.active {
+  animation: shimmer-flow 1.5s ease-in-out infinite;
+  opacity: 1;
+}
+
+/* Particle effects for nav items */
+.nav-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  filter: blur(1px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.group:hover .nav-particle,
+.nav-particle.active-1 {
+  animation: particle-float-1 2s ease-out forwards;
+  opacity: 1;
+}
+
+.group:hover .nav-particle.active-2,
+.nav-particle.active-2 {
+  animation: particle-float-2 2.2s ease-out 0.2s forwards;
+  opacity: 1;
+}
+
+.group:hover .nav-particle.active-3,
+.nav-particle.active-3 {
+  animation: particle-float-3 1.8s ease-out 0.4s forwards;
+  opacity: 1;
+}
+
+@keyframes particle-float-1 {
+  0% { opacity: 0; transform: translateY(10px) translateX(0); }
+  30% { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-50px) translateX(15px); }
+}
+
+@keyframes particle-float-2 {
+  0% { opacity: 0; transform: translateY(8px) translateX(0); }
+  25% { opacity: 0.7; }
+  100% { opacity: 0; transform: translateY(-45px) translateX(-10px); }
+}
+
+@keyframes particle-float-3 {
+  0% { opacity: 0; transform: translateY(12px) translateX(0); }
+  35% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-55px) translateX(8px); }
+}
+
+/* Dynamic color variants for smoke */
+.nav-smoke-cyan .nav-smoke-layer,
+.nav-smoke-cyan .nav-mist-layer,
+.nav-smoke-cyan .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(6, 182, 212, 0.4) 50%,
+    transparent 100%);
+}
+
+.nav-smoke-purple .nav-smoke-layer,
+.nav-smoke-purple .nav-mist-layer,
+.nav-smoke-purple .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(168, 85, 247, 0.4) 50%,
+    transparent 100%);
+}
+
+.nav-smoke-pink .nav-smoke-layer,
+.nav-smoke-pink .nav-mist-layer,
+.nav-smoke-pink .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(236, 72, 153, 0.4) 50%,
+    transparent 100%);
+}
+
+.nav-smoke-blue .nav-smoke-layer,
+.nav-smoke-blue .nav-mist-layer,
+.nav-smoke-blue .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(59, 130, 246, 0.4) 50%,
+    transparent 100%);
+}
+
+.nav-smoke-yellow .nav-smoke-layer,
+.nav-smoke-yellow .nav-mist-layer,
+.nav-smoke-yellow .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(234, 179, 8, 0.4) 50%,
+    transparent 100%);
+}
+
+.nav-smoke-green .nav-smoke-layer,
+.nav-smoke-green .nav-mist-layer,
+.nav-smoke-green .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(34, 197, 94, 0.4) 50%,
+    transparent 100%);
+}
+
+.nav-smoke-red .nav-smoke-layer,
+.nav-smoke-red .nav-mist-layer,
+.nav-smoke-red .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(239, 68, 68, 0.4) 50%,
+    transparent 100%);
+}
+
+.nav-smoke-indigo .nav-smoke-layer,
+.nav-smoke-indigo .nav-mist-layer,
+.nav-smoke-indigo .nav-vapor-layer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(99, 102, 241, 0.4) 50%,
+    transparent 100%);
+}
+
+/* ============================================
    Bubble Effect Animations
    ============================================ */
 @keyframes bubble-rise-1 {
@@ -1661,6 +1971,16 @@ pre {
   animation: dataUpdate 0.5s ease-out;
 }
 
+/* Scrollbar hiding */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Skeleton loading with shimmer */
 .skeleton-shimmer {
   position: relative;
@@ -1955,5 +2275,149 @@ pre {
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+/* ============================================
+   Delete Confirmation Dialog Styles
+   ============================================ */
+
+/* Dialog backdrop */
+.dialog-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Dialog entrance animations */
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialogScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dialogSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Icon pulse animation for delete */
+@keyframes deleteIconPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.animate-delete-icon {
+  animation: deleteIconPulse 2s ease-in-out infinite;
+}
+
+/* Button ripple effect */
+@keyframes buttonRipple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.5s, opacity 0.5s;
+}
+
+.btn-ripple:active::after {
+  animation: buttonRipple 0.6s ease-out;
+}
+
+/* Danger button glow */
+.btn-danger-glow {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+.btn-danger-glow:hover {
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.5), 0 0 60px rgba(239, 68, 68, 0.2);
+}
+
+/* Dialog content stagger animation */
+.dialog-content-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.dialog-content-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Focus ring animation */
+@keyframes focusRingPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+.focus-ring-danger {
+  animation: focusRingPulse 2s ease-in-out infinite;
+}
+
+/* Gradient text for emphasis */
+.text-gradient-danger {
+  background: linear-gradient(135deg, #fca5a5 0%, #f87171 50%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Responsive dialog */
+@media (max-width: 640px) {
+  .dialog-responsive {
+    max-width: calc(100% - 2rem);
+    margin: 1rem;
   }
 }

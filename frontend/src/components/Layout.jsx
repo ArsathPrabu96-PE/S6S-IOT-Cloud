@@ -42,13 +42,14 @@ const Layout = () => {
   ];
 
   const colorMap = [
-    { name: 'cyan', gradient: 'from-cyan-500', via: 'via-cyan-400', to: 'to-cyan-500', border: 'border-cyan-500', shadow: 'shadow-cyan-500', glow: 'rgba(6, 182, 212, 0.5)' },
-    { name: 'purple', gradient: 'from-purple-500', via: 'via-purple-400', to: 'to-purple-500', border: 'border-purple-500', shadow: 'shadow-purple-500', glow: 'rgba(168, 85, 247, 0.5)' },
-    { name: 'pink', gradient: 'from-pink-500', via: 'via-pink-400', to: 'to-pink-500', border: 'border-pink-500', shadow: 'shadow-pink-500', glow: 'rgba(236, 72, 153, 0.5)' },
-    { name: 'blue', gradient: 'from-blue-500', via: 'via-blue-400', to: 'to-blue-500', border: 'border-blue-500', shadow: 'shadow-blue-500', glow: 'rgba(59, 130, 246, 0.5)' },
-    { name: 'yellow', gradient: 'from-yellow-500', via: 'via-yellow-400', to: 'to-yellow-500', border: 'border-yellow-500', shadow: 'shadow-yellow-500', glow: 'rgba(234, 179, 8, 0.5)' },
-    { name: 'cyan', gradient: 'from-cyan-500', via: 'via-cyan-400', to: 'to-cyan-500', border: 'border-cyan-500', shadow: 'shadow-cyan-500', glow: 'rgba(6, 182, 212, 0.5)' },
-    { name: 'pink', gradient: 'from-pink-500', via: 'via-pink-400', to: 'to-pink-500', border: 'border-pink-500', shadow: 'shadow-pink-500', glow: 'rgba(236, 72, 153, 0.5)' },
+    { name: 'cyan', gradient: 'from-cyan-500', via: 'via-cyan-400', to: 'to-cyan-500', border: 'border-cyan-500', shadow: 'shadow-cyan-500', glow: 'rgba(6, 182, 212, 0.5)', bg: 'from-cyan-500/20 to-blue-500/20', smoke: 'nav-smoke-cyan' },
+    { name: 'purple', gradient: 'from-purple-500', via: 'via-purple-400', to: 'to-purple-500', border: 'border-purple-500', shadow: 'shadow-purple-500', glow: 'rgba(168, 85, 247, 0.5)', bg: 'from-purple-500/20 to-pink-500/20', smoke: 'nav-smoke-purple' },
+    { name: 'pink', gradient: 'from-pink-500', via: 'via-pink-400', to: 'to-pink-500', border: 'border-pink-500', shadow: 'shadow-pink-500', glow: 'rgba(236, 72, 153, 0.5)', bg: 'from-pink-500/20 to-rose-500/20', smoke: 'nav-smoke-pink' },
+    { name: 'blue', gradient: 'from-blue-500', via: 'via-blue-400', to: 'to-blue-500', border: 'border-blue-500', shadow: 'shadow-blue-500', glow: 'rgba(59, 130, 246, 0.5)', bg: 'from-blue-500/20 to-indigo-500/20', smoke: 'nav-smoke-blue' },
+    { name: 'yellow', gradient: 'from-yellow-500', via: 'via-yellow-400', to: 'to-yellow-500', border: 'border-yellow-500', shadow: 'shadow-yellow-500', glow: 'rgba(234, 179, 8, 0.5)', bg: 'from-yellow-500/20 to-orange-500/20', smoke: 'nav-smoke-yellow' },
+    { name: 'green', gradient: 'from-green-500', via: 'via-green-400', to: 'to-green-500', border: 'border-green-500', shadow: 'shadow-green-500', glow: 'rgba(34, 197, 94, 0.5)', bg: 'from-green-500/20 to-emerald-500/20', smoke: 'nav-smoke-green' },
+    { name: 'red', gradient: 'from-red-500', via: 'via-red-400', to: 'to-red-500', border: 'border-red-500', shadow: 'shadow-red-500', glow: 'rgba(239, 68, 68, 0.5)', bg: 'from-red-500/20 to-orange-500/20', smoke: 'nav-smoke-red' },
+    { name: 'indigo', gradient: 'from-indigo-500', via: 'via-indigo-400', to: 'to-indigo-500', border: 'border-indigo-500', shadow: 'shadow-indigo-500', glow: 'rgba(99, 102, 241, 0.5)', bg: 'from-indigo-500/20 to-violet-500/20', smoke: 'nav-smoke-indigo' },
   ];
 
   const getNavLinkClass = (active, colors) => {
@@ -71,10 +72,25 @@ const Layout = () => {
       <div className="relative z-20">
         {/* Sidebar */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900/60 via-slate-800/40 to-slate-900/60 backdrop-blur-md border-r border-slate-700/30 shadow-2xl transform transition-transform duration-300 overflow-hidden ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900/80 via-slate-800/60 to-slate-900/80 backdrop-blur-md border-r border-slate-700/30 shadow-2xl transform transition-transform duration-300 overflow-hidden rounded-br-xl ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:translate-x-0`}
         >
+          {/* Colorful Background Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-purple-500/5 to-pink-500/5" />
+          
+          {/* Animated Colorful Orbs */}
+          <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+            <div className="absolute top-10 left-10 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-20 right-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+            <div className="absolute top-1/2 left-1/2 w-24 h-24 bg-pink-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+            <div className="absolute bottom-10 left-1/4 w-20 h-20 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+            <div className="absolute top-20 right-1/3 w-16 h-16 bg-green-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+          </div>
+          
+          {/* Grid Pattern Overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px]" />
+
           {/* Bubble Effect Container */}
           <div className="absolute inset-0 pointer-events-none z-0">
             <div className="absolute rounded-full bubble-rise-1 blur-sm" style={{ left: '10%', width: '12px', height: '12px', background: 'rgba(6, 182, 212, 0.4)', '--duration': '7s', '--delay': '0s' }} />
@@ -90,19 +106,25 @@ const Layout = () => {
           </div>
 
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-slate-700/30 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/50">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="h-20 flex items-center px-6 border-b border-slate-700/30 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 relative overflow-hidden">
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12" />
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/50 ring-2 ring-white/20">
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-white drop-shadow-lg">S6S IoT</span>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold bg-gradient-to-r from-white via-cyan-200 to-white bg-clip-text text-transparent drop-shadow-lg">S6S IoT</span>
+                <span className="text-xs text-cyan-400/80">Cloud Platform</span>
+              </div>
             </div>
           </div>
 
           {/* Navigation - Scrollable */}
-          <div className="h-[calc(100vh-180px)] overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+          <div className="h-[calc(100vh-85px)] overflow-y-auto p-4 space-y-3 scrollbar-hide">
             {navItems.map((item, index) => {
               const active = isActive(item.path);
               const colors = colorMap[index] || colorMap[0];
@@ -118,6 +140,21 @@ const Layout = () => {
                     boxShadow: active ? `0 0 20px ${colors.glow}, 0 0 40px ${colors.glow}40` : 'none',
                   }}
                 >
+                  {/* Smoke/Mist Effect Container */}
+                  <div className={`nav-smoke-container ${colors.smoke}`}>
+                    {/* Smoke flow layer */}
+                    <div className={`nav-smoke-layer ${active ? 'active' : ''}`} />
+                    {/* Mist spread layer */}
+                    <div className={`nav-mist-layer ${active ? 'active' : ''}`} />
+                    {/* Vapor rising layer */}
+                    <div className={`nav-vapor-layer ${active ? 'active' : ''}`} />
+                    {/* Shimmer effect */}
+                    <div className={`nav-shimmer ${active ? 'active' : ''}`} />
+                    {/* Particle effects */}
+                    <div className={`nav-particle ${active ? 'active-1' : ''}`} style={{ left: '20%', top: '60%' }} />
+                    <div className={`nav-particle ${active ? 'active-2' : ''}`} style={{ left: '50%', top: '70%' }} />
+                    <div className={`nav-particle ${active ? 'active-3' : ''}`} style={{ left: '80%', top: '50%' }} />
+                  </div>
                   {/* Neon glow background effect */}
                   <div 
                     className={`absolute inset-0 rounded-xl transition-all duration-500 ${
@@ -146,7 +183,7 @@ const Layout = () => {
                     }}
                   >{item.label}</span>
                   {item.badge > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-xs font-medium px-2 py-0.5 rounded-full shadow-lg shadow-red-500/50">
+                    <span className="ml-auto bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 text-white text-xs font-medium px-2.5 py-1 rounded-full shadow-lg shadow-red-500/50 animate-pulse">
                       {item.badge}
                     </span>
                   )}
@@ -161,7 +198,7 @@ const Layout = () => {
         {/* Main content */}
         <div className="lg:pl-64">
           {/* Top header with smooth transitions */}
-          <header className="h-16 bg-slate-900/60 backdrop-blur-md border-b border-slate-700/30 flex items-center justify-end px-4 lg:px-8 gap-4 transition-all duration-300 hover:bg-slate-900/70">
+          <header className="h-16 bg-slate-900/60 backdrop-blur-md border-b border-slate-700/30 flex items-center justify-end px-4 lg:px-8 gap-4 transition-all duration-300 hover:bg-slate-900/70 -mt-px">
             <button
               onClick={toggleSidebar}
               className="lg:hidden p-2 rounded-lg hover:bg-slate-700 text-slate-300 transition-all duration-200 hover:scale-110 active:scale-95"
@@ -188,7 +225,7 @@ const Layout = () => {
               {/* User Profile Section */}
               <div className="flex items-center gap-3 pl-4 border-l border-slate-700/50 transition-all duration-300 hover:border-slate-600/50">
                 {/* User Avatar with gradient ring */}
-                <div className="relative w-9 h-9 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg shadow-cyan-500/30 ring-2 ring-slate-700/50 transition-all duration-300 hover:ring-cyan-400 hover:scale-110 hover:shadow-cyan-500/50">
+                <div className="relative w-10 h-10 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg shadow-cyan-500/30 ring-2 ring-slate-700/50 transition-all duration-300 hover:ring-purple-400 hover:scale-110 hover:shadow-purple-500/50">
                   <span className="text-white font-semibold text-sm transition-transform duration-300 hover:scale-110">
                     {user?.firstName?.[0] || user?.email?.[0] || 'U'}
                   </span>
@@ -221,7 +258,7 @@ const Layout = () => {
           </header>
 
           {/* Page content with entrance animation */}
-          <main className="p-4 lg:p-8">
+          <main className="p-4 lg:p-8 pt-0">
             <div 
               key={location.pathname}
               className="animate-fade-in-up"

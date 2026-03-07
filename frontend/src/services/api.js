@@ -63,6 +63,35 @@ const saveProjects = (projects) => {
 let DEMO_DEVICES = loadDevices();
 let DEMO_PROJECTS = loadProjects();
 
+// Alert rules for demo mode
+const INITIAL_DEMO_ALERT_RULES = [
+  { id: '1', name: 'High Temperature', type: 'threshold', condition: 'temperature', value: 30, unit: '°C', status: 'active', deviceName: 'Living Room' },
+  { id: '2', name: 'Low Humidity', type: 'threshold', condition: 'humidity', value: 30, unit: '%', status: 'active', deviceName: 'Garden' },
+  { id: '3', name: 'Device Offline', type: 'status', condition: 'status', value: 'offline', status: 'paused', deviceName: 'All Devices' },
+];
+
+const loadAlertRules = () => {
+  try {
+    const stored = localStorage.getItem('demo_alert_rules');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load alert rules from localStorage', e);
+  }
+  return INITIAL_DEMO_ALERT_RULES;
+};
+
+const saveAlertRules = (rules) => {
+  try {
+    localStorage.setItem('demo_alert_rules', JSON.stringify(rules));
+  } catch (e) {
+    console.error('Failed to save alert rules to localStorage', e);
+  }
+};
+
+let DEMO_ALERT_RULES = loadAlertRules();
+
 // Dynamic device stats calculation
 const getDeviceStats = () => {
   const stats = { total: 0, online: 0, offline: 0, error: 0 };
@@ -267,6 +296,7 @@ void loop() {
       const project = DEMO_PROJECTS.find(p => p.id === id);
       if (project) return { data: { success: true, data: project } };
     }
+    if (url.includes('/alerts')) return { data: { success: true, data: DEMO_ALERT_RULES } };
     return { data: { success: false, error: 'Not found' } };
   },
   post: async (url, data) => {
@@ -319,6 +349,13 @@ void loop() {
       saveProjects(DEMO_PROJECTS);
       return { data: { success: true } };
     }
+    if (url.includes('/alerts/')) {
+      // Alerts are handled in the DEMO_ALERT_RULES array below
+      const id = url.split('/alerts/')[1];
+      DEMO_ALERT_RULES = DEMO_ALERT_RULES.filter(r => r.id !== id);
+      saveAlertRules(DEMO_ALERT_RULES);
+      return { data: { success: true } };
+    }
     const id = url.split('/').pop();
     DEMO_DEVICES = DEMO_DEVICES.filter(d => d.id !== id);
     saveDevices(DEMO_DEVICES);
@@ -365,6 +402,9 @@ export const sensorsAPI = {
 export const alertsAPI = {
   list: (params) => api.get('/alerts'),
   get: (id) => api.get('/alerts/' + id),
+  create: (data) => api.post('/alerts', JSON.stringify(data)),
+  update: (id, data) => api.put('/alerts/' + id, JSON.stringify(data)),
+  delete: (id) => api.delete('/alerts/' + id),
   acknowledge: (id) => api.put('/alerts/' + id + '/acknowledge', {}),
   resolve: (id) => api.put('/alerts/' + id + '/resolve', {}),
 };

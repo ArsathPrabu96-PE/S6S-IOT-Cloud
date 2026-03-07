@@ -333,13 +333,41 @@ VITE_WS_URL=ws://localhost:3000
 
 ## Coming Soon
 
+### AI & Analytics
 - AI anomaly detection
 - Predictive maintenance
+- Machine learning-based forecasting
+- Natural language querying
+
+### Device Management
 - OTA firmware updates
 - Digital twin visualization
-- Multi-device management
+- Multi-device bulk operations
+- Device cloning/duplication
+
+### Cloud & Integration
 - Edge computing support
+- Cloud storage export (AWS S3, Google Drive)
+- IFTTT/Zapier integration
+- Voice assistant support (Alexa, Google Home)
+- Third-party API integrations
+
+### Collaboration & Security
 - Role-based team collaboration
+- Multi-user device sharing
+- Audit logs and activity tracking
+- Two-factor authentication (2FA)
+
+### Automation
+- Scheduled automation rules
+- Custom widget builder
+- Geofencing alerts
+- Energy consumption analytics
+
+### Mobile & Desktop
+- Mobile app (iOS/Android)
+- Desktop notifications
+- PWA support
 
 ## License
 

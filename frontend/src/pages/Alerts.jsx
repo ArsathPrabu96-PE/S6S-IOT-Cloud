@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { alertsAPI } from '../services/api';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 // Alert Rule Builder Component
 const AlertRuleBuilder = ({ isOpen, onClose, onSave, devices, existingRule }) => {
@@ -285,11 +287,37 @@ const AlertRuleBuilder = ({ isOpen, onClose, onSave, devices, existingRule }) =>
 const AlertsWithRules = () => {
   const navigate = useNavigate();
   const [showRuleBuilder, setShowRuleBuilder] = useState(false);
-  const [alertRules, setAlertRules] = useState([
-    { id: '1', name: 'High Temperature', device: 'Living Room', sensor: 'Temperature', condition: '> 35°C', severity: 'critical', isActive: true },
-    { id: '2', name: 'Low Humidity', device: 'Garden', sensor: 'Humidity', condition: '< 30%', severity: 'warning', isActive: true },
-    { id: '3', name: 'Device Offline', device: 'Garage', sensor: 'Status', condition: 'offline', severity: 'info', isActive: false },
-  ]);
+  const [alertRules, setAlertRules] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [ruleToDelete, setRuleToDelete] = useState(null);
+
+  // Load alert rules from API on mount
+  useEffect(() => {
+    const loadAlertRules = async () => {
+      try {
+        setIsLoading(true);
+        const response = await alertsAPI.list();
+        if (response.data?.success && response.data.data) {
+          // Transform API data to component format
+          const rules = response.data.data.map(rule => ({
+            id: rule.id,
+            name: rule.name,
+            device: rule.deviceName || 'Unknown Device',
+            sensor: rule.sensorName || rule.condition || 'N/A',
+            condition: rule.value ? `${rule.condition || '>'}${rule.value}${rule.unit || ''}` : rule.condition || 'N/A',
+            severity: rule.type === 'critical' ? 'critical' : rule.type === 'warning' ? 'warning' : 'info',
+            isActive: rule.status === 'active',
+          }));
+          setAlertRules(rules);
+        }
+      } catch (error) {
+        console.error('Failed to load alert rules:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadAlertRules();
+  }, []);
   
   const demoDevices = [
     { id: '1', name: 'Living Room', sensors: [{ id: 's1', name: 'Temperature', unit: '°C' }, { id: 's2', name: 'Humidity', unit: '%' }] },
@@ -309,8 +337,18 @@ const AlertsWithRules = () => {
   };
 
   const deleteRule = (id) => {
-    if (window.confirm('Are you sure you want to delete this rule?')) {
-      setAlertRules(alertRules.filter(r => r.id !== id));
+    setRuleToDelete(alertRules.find(r => r.id === id));
+  };
+
+  const handleConfirmDelete = async () => {
+    if (ruleToDelete) {
+      try {
+        await alertsAPI.delete(ruleToDelete.id);
+        setAlertRules(alertRules.filter(r => r.id !== ruleToDelete.id));
+      } catch (error) {
+        console.error('Failed to delete alert rule:', error);
+      }
+      setRuleToDelete(null);
     }
   };
 
@@ -399,38 +437,38 @@ const AlertsWithRules = () => {
         </div>
         <div className="divide-y divide-slate-700/50">
           {alertRules.map((rule) => (
-            <div key={rule.id} className="p-4 flex items-center justify-between hover:bg-slate-700/30 transition-colors">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => toggleRule(rule.id)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${rule.isActive ? 'bg-green-500' : 'bg-slate-600'}`}
-                >
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${rule.isActive ? 'left-7' : 'left-1'}`} />
-                </button>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-white font-medium">{rule.name}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${severityColors[rule.severity]}`}>
-                      {rule.severity}
-                    </span>
+              <div key={rule.id} className="p-4 flex items-center justify-between hover:bg-slate-700/30 transition-colors">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => toggleRule(rule.id)}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${rule.isActive ? 'bg-green-500' : 'bg-slate-600'}`}
+                  >
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${rule.isActive ? 'left-7' : 'left-1'}`} />
+                  </button>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-white font-medium">{rule.name}</h3>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${severityColors[rule.severity]}`}>
+                        {rule.severity}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      {rule.device} → {rule.sensor} ({rule.condition})
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-400">
-                    {rule.device} → {rule.sensor} ({rule.condition})
-                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setRuleToDelete(rule)}
+                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => deleteRule(rule.id)}
-                  className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
 
@@ -440,6 +478,17 @@ const AlertsWithRules = () => {
         onClose={() => setShowRuleBuilder(false)}
         onSave={handleSaveRule}
         devices={demoDevices}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={!!ruleToDelete}
+        title="Delete Alert Rule"
+        message="Are you sure you want to delete this alert rule? This action cannot be undone."
+        itemName={ruleToDelete?.name}
+        confirmText="Delete Rule"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setRuleToDelete(null)}
       />
     </div>
   );

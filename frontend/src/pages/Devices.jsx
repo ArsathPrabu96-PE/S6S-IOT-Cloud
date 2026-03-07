@@ -7,12 +7,14 @@ import { format } from 'date-fns';
 import MicrocontrollerSelector from '../components/MicrocontrollerSelector';
 import { DEVICE_TYPES } from '../data/deviceTypes';
 import Tooltip from '../components/Tooltip';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 const Devices = () => {
   const { devices, pagination, setDevices, setLoading } = useDeviceStore();
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showMcSelector, setShowMcSelector] = useState(false);
+  const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [deviceTypes, setDeviceTypes] = useState(DEVICE_TYPES);
   const [formData, setFormData] = useState({
     name: '',
@@ -89,6 +91,17 @@ const Devices = () => {
     }
   };
 
+  const handleDeleteDevice = async () => {
+    if (!deviceToDelete) return;
+    try {
+      await devicesAPI.delete(deviceToDelete.id);
+      loadDevices();
+      setDeviceToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete device:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -149,7 +162,7 @@ const Devices = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {devices.map((device) => (
-            <DeviceCard key={device.id} device={device} />
+            <DeviceCard key={device.id} device={device} onDelete={setDeviceToDelete} />
           ))}
         </div>
       )}
@@ -246,14 +259,25 @@ const Devices = () => {
           onClose={() => setShowMcSelector(false)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={!!deviceToDelete}
+        title="Delete Device"
+        message="Are you sure you want to delete this device? All associated sensors and data will be permanently removed. This action cannot be undone."
+        itemName={deviceToDelete?.name}
+        confirmText="Delete Device"
+        onConfirm={handleDeleteDevice}
+        onCancel={() => setDeviceToDelete(null)}
+      />
     </div>
   );
 };
 
 // Device Card Component
-const DeviceCard = ({ device }) => {
+const DeviceCard = ({ device, onDelete }) => {
   return (
-    <Link to={`/devices/${device.id}`} className="card card-hover p-4">
+    <Link to={`/devices/${device.id}`} className="card card-hover p-4 group">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className={`w-3 h-3 rounded-full status-${device.status}`}></div>
@@ -262,9 +286,24 @@ const DeviceCard = ({ device }) => {
             <p className="text-xs text-gray-500 font-mono">{device.device_uuid}</p>
           </div>
         </div>
-        <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
-          {device.device_type_name || 'Unknown'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+            {device.device_type_name || 'Unknown'}
+          </span>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(device);
+            }}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
+            title="Delete device"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {device.location_name && (

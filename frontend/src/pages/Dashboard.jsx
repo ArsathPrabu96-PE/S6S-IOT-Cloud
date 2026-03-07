@@ -10,6 +10,7 @@ import { useDeviceStore, useAuthStore, useAlertStore } from '../context/store';
 import wsService from '../services/websocket';
 import { format, formatDistanceToNow } from 'date-fns';
 import Tooltip from '../components/Tooltip';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 // ============================================
 // HELPER FUNCTIONS
@@ -946,10 +947,7 @@ const DeviceDetailPanel = ({ device, onClose, onControlChange, onSliderChange, o
           <div className="mt-4 pt-4 border-t border-slate-700/50">
             <button 
               onClick={() => {
-                if (window.confirm(`Are you sure you want to delete "${device.name}"?`)) {
-                  onDelete(device);
-                  onClose();
-                }
+                setDeleteDialogState({ isOpen: true, device, fromPanel: true });
               }}
               className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
             >
@@ -980,6 +978,7 @@ const Dashboard = () => {
   const [activeWidgetTab, setActiveWidgetTab] = useState('overview');
   const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
   const [projects, setProjects] = useState([]);
+  const [deleteDialogState, setDeleteDialogState] = useState({ isOpen: false, device: null, fromPanel: false });
 
   // Fetch projects function
   const fetchProjects = useCallback(async () => {
@@ -1066,23 +1065,38 @@ const Dashboard = () => {
     }));
   };
 
-  // Delete device handler
+  // Delete device handler - shows confirmation dialog
   const handleDeleteDevice = async (device, e) => {
     if (e && e.stopPropagation) {
       e.stopPropagation();
     }
-    if (window.confirm(`Are you sure you want to delete "${device.name}"?`)) {
-      try {
-        await devicesAPI.delete(device.id);
-        // Refresh devices after delete
-        const response = await devicesAPI.list({ page: 1, limit: 10 });
-        setDevices(response.data?.data || response.data || [], response.data?.pagination || { page: 1, limit: 10, total: 0 });
-        alert(`${device.name} has been deleted`);
-      } catch (error) {
-        console.error('Failed to delete device:', error);
-        alert('Failed to delete device. Please try again.');
+    setDeleteDialogState({ isOpen: true, device, fromPanel: false });
+  };
+
+  // Handle actual delete after confirmation
+  const executeDelete = async () => {
+    const device = deleteDialogState.device;
+    const fromPanel = deleteDialogState.fromPanel;
+    setDeleteDialogState({ isOpen: false, device: null, fromPanel: false });
+    
+    try {
+      await devicesAPI.delete(device.id);
+      // Refresh devices after delete
+      const response = await devicesAPI.list({ page: 1, limit: 10 });
+      setDevices(response.data?.data || response.data || [], response.data?.pagination || { page: 1, limit: 10, total: 0 });
+      alert(`${device.name} has been deleted`);
+      if (fromPanel) {
+        setSelectedDevice(null);
       }
+    } catch (error) {
+      console.error('Failed to delete device:', error);
+      alert('Failed to delete device. Please try again.');
     }
+  };
+
+  // Handle cancel delete
+  const cancelDelete = () => {
+    setDeleteDialogState({ isOpen: false, device: null, fromPanel: false });
   };
 
   // Derive display data from stores
@@ -1935,6 +1949,18 @@ const Dashboard = () => {
           onDelete={handleDeleteDevice}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={deleteDialogState.isOpen}
+        title="Delete Device"
+        message="Are you sure you want to delete this device? This action cannot be undone and all associated data will be permanently removed."
+        itemName={deleteDialogState.device?.name}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={executeDelete}
+        onCancel={cancelDelete}
+      />
 
       {/* ========================================== */}
       {/* QUICK ACTIONS */}

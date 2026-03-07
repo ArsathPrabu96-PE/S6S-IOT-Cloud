@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 // Widget types available in the builder
 const WIDGET_TYPES = [
@@ -35,10 +36,25 @@ const getDefaultConfig = (type) => {
 const DashboardBuilder = () => {
   const navigate = useNavigate();
   const [dashboardName, setDashboardName] = useState('My Dashboard');
-  const [widgets, setWidgets] = useState([]);
+  const [widgets, setWidgets] = useState(() => {
+    // Load saved dashboard from localStorage on mount
+    try {
+      const saved = localStorage.getItem('saved_dashboard');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.widgets && Array.isArray(parsed.widgets)) {
+          return parsed.widgets;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved dashboard:', e);
+    }
+    return [];
+  });
   const [selectedWidget, setSelectedWidget] = useState(null);
   const [draggedWidget, setDraggedWidget] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [deleteDialogState, setDeleteDialogState] = useState({ isOpen: false, widget: null });
   const gridRef = useRef(null);
 
   // Sample devices for widget binding
@@ -88,6 +104,27 @@ const DashboardBuilder = () => {
   const deleteWidget = (id) => {
     setWidgets(widgets.filter(w => w.id !== id));
     setSelectedWidget(null);
+  };
+
+  // Delete dialog handlers
+  const showDeleteDialog = (widget) => {
+    setDeleteDialogState({ isOpen: true, widget });
+  };
+
+  const executeDelete = () => {
+    if (deleteDialogState.widget) {
+      const updatedWidgets = widgets.filter(w => w.id !== deleteDialogState.widget.id);
+      setWidgets(updatedWidgets);
+      setSelectedWidget(null);
+      // Persist to localStorage
+      const dashboard = { name: dashboardName, widgets: updatedWidgets };
+      localStorage.setItem('saved_dashboard', JSON.stringify(dashboard));
+    }
+    setDeleteDialogState({ isOpen: false, widget: null });
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialogState({ isOpen: false, widget: null });
   };
 
   const handleSave = () => {
@@ -273,7 +310,7 @@ const DashboardBuilder = () => {
                   </div>
                 )}
                 <button
-                  onClick={() => deleteWidget(selectedWidget.id)}
+                  onClick={() => showDeleteDialog(selectedWidget)}
                   className="w-full px-3 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded text-sm transition-colors"
                 >
                   Delete Widget
@@ -320,6 +357,18 @@ const DashboardBuilder = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={deleteDialogState.isOpen}
+        title="Delete Widget"
+        message={`Are you sure you want to delete the widget "${deleteDialogState.widget?.config?.title}"? This action cannot be undone.`}
+        itemName={deleteDialogState.widget?.config?.title}
+        onConfirm={executeDelete}
+        onCancel={cancelDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };
