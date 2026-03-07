@@ -10,7 +10,7 @@ const QoSPacket = require('./qos-packet')
 const handleSubscribe = require('./handlers/subscribe')
 const handleUnsubscribe = require('./handlers/unsubscribe')
 const handle = require('./handlers')
-const { pipeline } = require('readable-stream')
+const { pipeline } = require('stream')
 const { through } = require('./utils')
 
 module.exports = Client
@@ -89,9 +89,20 @@ function Client (broker, conn, req) {
   conn.on('end', this.close.bind(this))
   this._eos = eos(this.conn, this.close.bind(this))
 
-  this.deliver0 = function deliverQoS0 (_packet, cb) {
+  const getToForwardPacket = (_packet) => {
+    // Mqttv5 3.8.3.1: https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html#_Toc3901169
+    // prevent to forward messages sent by the same client when no-local flag is set
+    if (_packet.clientId === that.id && _packet.nl) return
+
     const toForward = dedupe(that, _packet) &&
       that.broker.authorizeForward(that, _packet)
+
+    return toForward
+  }
+
+  this.deliver0 = function deliverQoS0 (_packet, cb) {
+    const toForward = getToForwardPacket(_packet)
+
     if (toForward) {
       // Give nodejs some time to clear stacks, or we will see
       // "Maximum call stack size exceeded" in a very high load
@@ -114,8 +125,8 @@ function Client (broker, conn, req) {
       that.deliver0(_packet, cb)
       return
     }
-    const toForward = dedupe(that, _packet) &&
-      that.broker.authorizeForward(that, _packet)
+    const toForward = getToForwardPacket(_packet)
+
     if (toForward) {
       setImmediate(() => {
         const packet = new QoSPacket(toForward, that)
@@ -302,7 +313,14 @@ Client.prototype.close = function (done) {
           }, noop)
         }
       })
+    } else if (will) {
+      // delete the persisted will even on clean disconnect https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc385349232
+      that.broker.persistence.delWill({
+        id: that.id,
+        brokerId: that.broker.id
+      }, noop)
     }
+
     that.will = null // this function might be called twice
     that._will = null
 

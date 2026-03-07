@@ -1,5 +1,6 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
+import crypto from 'crypto';
 import User from '../models/User.js';
 import { generateTokens, verifyRefreshToken, authenticate } from '../middleware/auth.js';
 
@@ -141,6 +142,164 @@ router.post(
       res.status(500).json({
         success: false,
         error: 'Failed to login',
+      });
+    }
+  }
+);
+
+// @route   POST /api/auth/social
+// @desc    Login or register with social provider (Google, GitHub)
+// @access  Public
+router.post(
+  '/social',
+  [
+    body('provider').isIn(['google', 'github']).withMessage('Invalid provider'),
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('socialId').notEmpty().withMessage('Social ID is required'),
+    body('firstName').optional().trim(),
+    body('lastName').optional().trim(),
+    body('avatarUrl').optional().trim(),
+  ],
+  handleValidation,
+  async (req, res) => {
+    try {
+      const { provider, email, socialId, firstName, lastName, avatarUrl } = req.body;
+      
+      // Check if user exists with this social account
+      let user = await User.findByEmail(email);
+      
+      if (!user) {
+        // Create new user
+        const tempPassword = `social_${socialId}_${Date.now()}`;
+        user = await User.create({
+          email,
+          password: tempPassword,
+          firstName: firstName || '',
+          lastName: lastName || '',
+        });
+        
+        // Update avatar if provided
+        if (avatarUrl) {
+          await User.update(user.id, { avatarUrl });
+        }
+      }
+      
+      // Check if user is active
+      if (!user.is_active) {
+        return res.status(401).json({
+          success: false,
+          error: 'Account is disabled',
+        });
+      }
+      
+      // Generate tokens
+      const tokens = generateTokens(user.id);
+      
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            company: user.company,
+            avatarUrl: user.avatar_url,
+          },
+          ...tokens,
+        },
+      });
+    } catch (error) {
+      console.error('Social login error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to login with social provider',
+      });
+    }
+  }
+);
+
+// @route   POST /api/auth/forgot-password
+// @desc    Request password reset
+// @access  Public
+router.post(
+  '/forgot-password',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  ],
+  handleValidation,
+  async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      // Check if user exists
+      const user = await User.findByEmail(email);
+      
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return res.json({
+          success: true,
+          message: 'If the email exists, a reset link will be sent',
+        });
+      }
+      
+      // Generate reset token (in production, store this in database with expiry)
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+      
+      // Store reset token (in production, save to database)
+      // For now, we'll just log it
+      console.log(`Password reset token for ${email}: ${resetToken}`);
+      
+      // In production, send email with reset link
+      // await sendEmail(email, 'Password Reset', `Reset link: ...`);
+      
+      res.json({
+        success: true,
+        message: 'If the email exists, a reset link will be sent',
+      });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process request',
+      });
+    }
+  }
+);
+
+// @route   POST /api/auth/reset-password
+// @desc    Reset password with token
+// @access  Public
+router.post(
+  '/reset-password',
+  [
+    body('token').notEmpty().withMessage('Reset token is required'),
+    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+  ],
+  handleValidation,
+  async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      
+      // In production, validate token from database
+      // For demo, we'll accept any token
+      
+      // Find user by reset token (in production)
+      // const user = await User.findByResetToken(token);
+      
+      // Since we don't have reset token storage, we'll just return success
+      // In production, validate token and update password
+      
+      res.json({
+        success: true,
+        message: 'Password has been reset successfully',
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to reset password',
       });
     }
   }

@@ -34,6 +34,23 @@ CREATE TABLE roles (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Permissions
+CREATE TABLE permissions (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+    category VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Role permissions
+CREATE TABLE role_permissions (
+    role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
+    permission_id INTEGER REFERENCES permissions(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_id, permission_id)
+);
+
 -- User role assignments
 CREATE TABLE user_roles (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -464,6 +481,192 @@ INSERT INTO roles (name, description) VALUES
 ('user', 'Regular user access'),
 ('viewer', 'Read-only access');
 
+-- Insert default permissions
+INSERT INTO permissions (name, description, category) VALUES
+-- Device permissions
+('devices:read', 'View devices', 'devices'),
+('devices:create', 'Create devices', 'devices'),
+('devices:update', 'Update devices', 'devices'),
+('devices:delete', 'Delete devices', 'devices'),
+('devices:control', 'Control devices (restart, etc.)', 'devices'),
+
+-- Sensor permissions
+('sensors:read', 'View sensors', 'sensors'),
+('sensors:create', 'Create sensors', 'sensors'),
+('sensors:update', 'Update sensors', 'sensors'),
+('sensors:delete', 'Delete sensors', 'sensors'),
+
+-- Alert permissions
+('alerts:read', 'View alerts', 'alerts'),
+('alerts:create', 'Create alerts', 'alerts'),
+('alerts:update', 'Update alerts', 'alerts'),
+('alerts:delete', 'Delete alerts', 'alerts'),
+
+-- Firmware permissions
+('firmware:read', 'View firmware', 'firmware'),
+('firmware:create', 'Create firmware', 'firmware'),
+('firmware:update', 'Update firmware', 'firmware'),
+('firmware:delete', 'Delete firmware', 'firmware'),
+
+-- User permissions
+('users:read', 'View users', 'users'),
+('users:create', 'Create users', 'users'),
+('users:update', 'Update users', 'users'),
+('users:delete', 'Delete users', 'users'),
+
+-- Analytics permissions
+('analytics:read', 'View analytics', 'analytics'),
+('analytics:export', 'Export analytics data', 'analytics'),
+
+-- Settings permissions
+('settings:read', 'View settings', 'settings'),
+('settings:update', 'Update settings', 'settings');
+
+-- Assign permissions to roles
+-- Admin role gets all permissions
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 1, id FROM permissions;
+
+-- User role gets basic permissions
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 2, id FROM permissions WHERE category IN ('devices', 'sensors', 'alerts');
+
+-- Viewer role gets read-only permissions
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 3, id FROM permissions WHERE name LIKE '%:read';
+
+-- ============================================
+-- FIRMWARE MANAGEMENT
+-- ============================================
+
+-- Firmware versions
+CREATE TABLE firmware_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    description TEXT,
+    device_type_id INTEGER REFERENCES device_types(id),
+    file_url VARCHAR(500) NOT NULL,
+    file_size BIGINT,
+    checksum VARCHAR(128),
+    build_date DATE,
+    is_stable BOOLEAN DEFAULT true,
+    is_default BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    download_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Firmware update history
+CREATE TABLE firmware_updates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
+    firmware_id UUID REFERENCES firmware_versions(id),
+    user_id UUID REFERENCES users(id),
+    status VARCHAR(50) DEFAULT 'pending', -- pending, initiated, downloading, flashing, completed, failed
+    progress INTEGER DEFAULT 0,
+    details JSONB DEFAULT '{}',
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    failed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- NOTIFICATIONS
+-- ============================================
+
+-- Notification templates
+CREATE TABLE notification_templates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(50) NOT NULL, -- email, sms, push, webhook
+    subject VARCHAR(255),
+    body TEXT NOT NULL,
+    variables JSONB DEFAULT '[]',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User notification preferences
+CREATE TABLE notification_preferences (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    channel VARCHAR(20) NOT NULL, -- email, sms, push, webhook
+    notification_type VARCHAR(50) NOT NULL,
+    enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, channel, notification_type)
+);
+
+-- Notifications
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL, -- alert, device, system, firmware
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    data JSONB DEFAULT '{}',
+    priority VARCHAR(20) DEFAULT 'normal', -- low, normal, high, critical
+    is_read BOOLEAN DEFAULT false,
+    read_at TIMESTAMP,
+    channel VARCHAR(20), -- email, sms, push, webhook, in_app
+    sent_at TIMESTAMP,
+    delivered_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- ANALYTICS
+-- ============================================
+
+-- Aggregated sensor data (hourly)
+CREATE TABLE sensor_data_hourly (
+    id BIGSERIAL PRIMARY KEY,
+    sensor_id UUID REFERENCES sensors(id) ON DELETE CASCADE,
+    bucket TIMESTAMP NOT NULL,
+    avg_value DECIMAL(15, 4),
+    min_value DECIMAL(15, 4),
+    max_value DECIMAL(15, 4),
+    count INTEGER DEFAULT 0,
+    stddev DECIMAL(15, 4),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sensor_id, bucket)
+);
+
+-- Aggregated sensor data (daily)
+CREATE TABLE sensor_data_daily (
+    id BIGSERIAL PRIMARY KEY,
+    sensor_id UUID REFERENCES sensors(id) ON DELETE CASCADE,
+    bucket DATE NOT NULL,
+    avg_value DECIMAL(15, 4),
+    min_value DECIMAL(15, 4),
+    max_value DECIMAL(15, 4),
+    count INTEGER DEFAULT 0,
+    stddev DECIMAL(15, 4),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sensor_id, bucket)
+);
+
+-- Device analytics
+CREATE TABLE device_analytics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    total_messages INTEGER DEFAULT 0,
+    online_time_minutes INTEGER DEFAULT 0,
+    offline_time_minutes INTEGER DEFAULT 0,
+    error_count INTEGER DEFAULT 0,
+    last_seen_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(device_id, date)
+);
+
 -- ============================================
 -- VIEWS
 -- ============================================
@@ -509,6 +712,36 @@ SELECT
 FROM users u
 LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'
 LEFT JOIN subscription_plans sp ON sp.id = s.plan_id;
+
+-- ============================================
+-- PROJECTS
+-- ============================================
+
+-- Projects table
+CREATE TABLE projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(50), -- smart_home, industrial, agriculture, healthcare, smart_city, environmental, other
+    tags JSONB DEFAULT '[]',
+    status VARCHAR(20) DEFAULT 'active', -- active, paused, archived
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Project devices (many-to-many)
+CREATE TABLE project_devices (
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (project_id, device_id)
+);
+
+-- Create trigger for projects updated_at
+CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- SEQUENCES FOR API KEYS

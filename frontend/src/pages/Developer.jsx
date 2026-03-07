@@ -1,7 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOnboarding, ONBOARDING_STEPS } from '../components/OnboardingWizard';
+import Tooltip from '../components/Tooltip';
 
-// Demo data
+// Load from localStorage or use defaults
+const loadFromStorage = (key, defaultValue) => {
+  try {
+    const stored = localStorage.getItem(`s6s_dev_${key}`);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const saveToStorage = (key, value) => {
+  try {
+    localStorage.setItem(`s6s_dev_${key}`, JSON.stringify(value));
+  } catch (e) {
+    console.error('Failed to save to localStorage:', e);
+  }
+};
+
+// Demo data - used only on first load
 const DEMO_API_KEYS = [
   { id: '1', name: 'Production API Key', key: 'sk_live_****...****8f2a', created: '2026-03-01', lastUsed: '2 min ago', permissions: ['read', 'write', 'admin'] },
   { id: '2', name: 'Development API Key', key: 'sk_test_****...****3b1c', created: '2026-02-15', lastUsed: '5 days ago', permissions: ['read'] },
@@ -64,41 +83,53 @@ const Developer = () => {
   const { startOnboarding, restartOnboarding } = useOnboarding();
   const [activeTab, setActiveTab] = useState('endpoints');
   const [showCreateModal, setShowCreateModal] = useState(null);
-  const [apiKeys, setApiKeys] = useState(DEMO_API_KEYS);
-  const [endpoints, setEndpoints] = useState(DEMO_ENDPOINTS);
-  const [webhooks, setWebhooks] = useState(DEMO_WEBHOOKS);
-  const [dataTemplates, setDataTemplates] = useState(DEMO_DATA_TEMPLATES);
-  const [ingestionPatterns, setIngestionPatterns] = useState(DEMO_INGESTION_PATTERNS);
-  const [widgetTemplates, setWidgetTemplates] = useState(DEMO_WIDGET_TEMPLATES);
+  const [apiKeys, setApiKeys] = useState(() => loadFromStorage('apiKeys', DEMO_API_KEYS));
+  const [endpoints, setEndpoints] = useState(() => loadFromStorage('endpoints', DEMO_ENDPOINTS));
+  const [webhooks, setWebhooks] = useState(() => loadFromStorage('webhooks', DEMO_WEBHOOKS));
+  const [dataTemplates, setDataTemplates] = useState(() => loadFromStorage('dataTemplates', DEMO_DATA_TEMPLATES));
+  const [ingestionPatterns, setIngestionPatterns] = useState(() => loadFromStorage('ingestionPatterns', DEMO_INGESTION_PATTERNS));
+  const [widgetTemplates, setWidgetTemplates] = useState(() => loadFromStorage('widgetTemplates', DEMO_WIDGET_TEMPLATES));
   const [selectedWidgetType, setSelectedWidgetType] = useState(null);
   const [droppedWidgets, setDroppedWidgets] = useState([]);
   const [tooltip, setTooltip] = useState(null);
-  const [selectedPlatform, setSelectedPlatform] = useState('blynk');
+  const [selectedPlatform, setSelectedPlatform] = useState('s6s');
   const [liveData, setLiveData] = useState({});
 
-  // Delete handlers
+  // Delete handlers - with localStorage persistence
   const handleDeleteEndpoint = (id) => {
-    setEndpoints(endpoints.filter(e => e.id !== id));
+    const updated = endpoints.filter(e => e.id !== id);
+    setEndpoints(updated);
+    saveToStorage('endpoints', updated);
   };
 
   const handleDeleteApiKey = (id) => {
-    setApiKeys(apiKeys.filter(k => k.id !== id));
+    const updated = apiKeys.filter(k => k.id !== id);
+    setApiKeys(updated);
+    saveToStorage('apiKeys', updated);
   };
 
   const handleDeleteWebhook = (id) => {
-    setWebhooks(webhooks.filter(w => w.id !== id));
+    const updated = webhooks.filter(w => w.id !== id);
+    setWebhooks(updated);
+    saveToStorage('webhooks', updated);
   };
 
   const handleDeleteDataTemplate = (id) => {
-    setDataTemplates(dataTemplates.filter(t => t.id !== id));
+    const updated = dataTemplates.filter(t => t.id !== id);
+    setDataTemplates(updated);
+    saveToStorage('dataTemplates', updated);
   };
 
   const handleDeleteWidgetTemplate = (id) => {
-    setWidgetTemplates(widgetTemplates.filter(t => t.id !== id));
+    const updated = widgetTemplates.filter(t => t.id !== id);
+    setWidgetTemplates(updated);
+    saveToStorage('widgetTemplates', updated);
   };
 
   const handleDeleteIngestionPattern = (id) => {
-    setIngestionPatterns(ingestionPatterns.filter(p => p.id !== id));
+    const updated = ingestionPatterns.filter(p => p.id !== id);
+    setIngestionPatterns(updated);
+    saveToStorage('ingestionPatterns', updated);
   };
 
   return (
@@ -110,19 +141,23 @@ const Developer = () => {
           <p className="text-slate-400 mt-1">Configure endpoints, API keys, and data integration settings</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={startOnboarding}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-            title="Start the interactive tutorial"
-          >
-            <span>❓</span> Help
-          </button>
-          <button
-            onClick={restartOnboarding}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-          >
-            <span>🔄</span> Restart Tutorial
-          </button>
+          <Tooltip content="Start the interactive onboarding tutorial">
+            <button
+              onClick={startOnboarding}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              title="Start the interactive tutorial"
+            >
+              <span>❓</span> Help
+            </button>
+          </Tooltip>
+          <Tooltip content="Restart the full tutorial from the beginning">
+            <button
+              onClick={restartOnboarding}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+            >
+              <span>🔄</span> Restart Tutorial
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -1094,12 +1129,9 @@ const Developer = () => {
       {activeTab === 'integrations' && (
         <div className="space-y-6">
           {/* Platform Selector */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
             {[
-              { id: 'blynk', name: 'BLYNK IoT', icon: '⚡', color: 'from-green-500 to-emerald-600', desc: 'Next-gen IoT Platform' },
-              { id: 'thingsboard', name: 'ThingsBoard', icon: '🔶', color: 'from-orange-500 to-red-600', desc: 'Open-source IoT Platform' },
-              { id: 'nodered', name: 'Node-RED', icon: '🔴', color: 'from-red-500 to-pink-600', desc: 'Flow-based Programming' },
-              { id: 'ubidots', name: 'Ubidots', icon: '📡', color: 'from-purple-500 to-indigo-600', desc: 'IoT Data Visualization' },
+              { id: 's6s', name: 'S6S IoT Cloud', icon: '☁️', color: 'from-cyan-500 to-purple-600', desc: 'Your IoT Platform' },
             ].map(platform => (
               <button
                 key={platform.id}
@@ -1123,17 +1155,11 @@ const Developer = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-2xl shadow-lg">
-                  {selectedPlatform === 'blynk' && '⚡'}
-                  {selectedPlatform === 'thingsboard' && '🔶'}
-                  {selectedPlatform === 'nodered' && '🔴'}
-                  {selectedPlatform === 'ubidots' && '📡'}
+                  ☁️
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">
-                    {selectedPlatform === 'blynk' && 'BLYNK IoT Dashboard'}
-                    {selectedPlatform === 'thingsboard' && 'ThingsBoard Dashboard'}
-                    {selectedPlatform === 'nodered' && 'Node-RED Flow Editor'}
-                    {selectedPlatform === 'ubidots' && 'Ubidots Dashboard'}
+                    S6S IoT Cloud Dashboard
                   </h2>
                   <p className="text-slate-400">Real-time IoT monitoring and control</p>
                 </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../context/store';
 import { authAPI } from '../services/api';
+import Tooltip from '../components/Tooltip';
 
 const Settings = () => {
   const { user, updateUser } = useAuthStore();
@@ -280,7 +281,9 @@ const Settings = () => {
                     ))}
                   </ul>
                   {!plan.current && (
-                    <button className="btn btn-secondary w-full">Select Plan</button>
+                    <Tooltip content={`Switch to ${plan.name} plan`}>
+                      <button className="btn btn-secondary w-full">Select Plan</button>
+                    </Tooltip>
                   )}
                 </div>
               ))}

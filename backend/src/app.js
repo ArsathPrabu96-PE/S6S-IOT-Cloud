@@ -9,6 +9,10 @@ import { testConnection } from './config/database.js';
 import authRoutes from './routes/auth.js';
 import deviceRoutes from './routes/devices.js';
 import sensorRoutes from './routes/sensors.js';
+import otaRoutes from './routes/ota.js';
+import notificationRoutes from './routes/notifications.js';
+import analyticsRoutes from './routes/analytics.js';
+import projectRoutes from './routes/projects.js';
 
 // Import services
 import { startMqttBroker } from './services/mqttBroker.js';
@@ -78,6 +82,10 @@ app.get('/api/status', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/sensors', sensorRoutes);
+app.use('/api/ota', otaRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/projects', projectRoutes);
 
 // 404 handler
 app.use((req, res) => {

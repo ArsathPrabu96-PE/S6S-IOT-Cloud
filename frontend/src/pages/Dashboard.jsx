@@ -1,14 +1,15 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, 
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, RadialBarChart, RadialBar,
   ComposedChart, Scatter
 } from 'recharts';
-import { devicesAPI } from '../services/api';
+import { devicesAPI, projectsAPI } from '../services/api';
 import { useDeviceStore, useAuthStore, useAlertStore } from '../context/store';
 import wsService from '../services/websocket';
 import { format, formatDistanceToNow } from 'date-fns';
+import Tooltip from '../components/Tooltip';
 
 // ============================================
 // HELPER FUNCTIONS
@@ -633,9 +634,15 @@ const CameraWidget = ({ title, src, alt = 'Camera Feed', offline = false }) => {
         )}
         {/* Overlay controls */}
         <div className="absolute bottom-2 left-2 right-2 flex justify-center gap-2">
-          <button className="px-3 py-1 bg-black/50 hover:bg-black/70 text-white rounded text-xs backdrop-blur-sm">⏸️ Pause</button>
-          <button className="px-3 py-1 bg-black/50 hover:bg-black/70 text-white rounded text-xs backdrop-blur-sm">📷 Snapshot</button>
-          <button className="px-3 py-1 bg-black/50 hover:bg-black/70 text-white rounded text-xs backdrop-blur-sm">⚙️ Settings</button>
+          <Tooltip content="Pause live data stream">
+            <button className="px-3 py-1 bg-black/50 hover:bg-black/70 text-white rounded text-xs backdrop-blur-sm">⏸️ Pause</button>
+          </Tooltip>
+          <Tooltip content="Capture current view as image">
+            <button className="px-3 py-1 bg-black/50 hover:bg-black/70 text-white rounded text-xs backdrop-blur-sm">📷 Snapshot</button>
+          </Tooltip>
+          <Tooltip content="Configure chart settings">
+            <button className="px-3 py-1 bg-black/50 hover:bg-black/70 text-white rounded text-xs backdrop-blur-sm">⚙️ Settings</button>
+          </Tooltip>
         </div>
       </div>
     </div>
@@ -972,29 +979,71 @@ const Dashboard = () => {
   const [deviceControls, setDeviceControls] = useState({});
   const [activeWidgetTab, setActiveWidgetTab] = useState('overview');
   const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
-  
-  // Initialize device controls
-  useEffect(() => {
-    const controls = {};
-    if (devices.length > 0) {
-      devices.forEach(d => {
-        controls[d.id] = d.controls || {};
-      });
+  const [projects, setProjects] = useState([]);
+
+  // Fetch projects function
+  const fetchProjects = useCallback(async () => {
+    try {
+      // For demo mode, also check localStorage directly
+      const stored = localStorage.getItem('demo_projects');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setProjects(parsed);
+      } else {
+        const response = await projectsAPI.list();
+        if (response.data?.success) {
+          setProjects(response.data.data || []);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
     }
-    setDeviceControls(controls);
-  }, [devices]);
-
-  // Use actual store data
-  const displayDevices = devices;
-  const displayStats = deviceStats || { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, totalSensors: 0, activeAlerts: 0, energyUsage: 0 };
-  const displayAlerts = alerts;
-
-  // Check if dashboard is empty
-  const isDashboardEmpty = displayDevices.length === 0;
+  }, []);
 
   useEffect(() => {
+    // Fetch devices
+    const loadDevices = async () => {
+      try {
+        const response = await devicesAPI.list({ page: 1, limit: 50 });
+        const deviceData = response.data?.data || response.data || [];
+        const paginationData = response.data?.pagination || { page: 1, limit: 50, total: 0 };
+        setDevices(deviceData, paginationData);
+      } catch (error) {
+        console.error('Failed to load devices:', error);
+      }
+    };
+
+    loadDevices();
+    fetchProjects();
+
+    // Listen for localStorage changes (for demo mode sync)
+    const handleStorageChange = (e) => {
+      if (e.key === 'demo_projects') {
+        if (e.newValue) {
+          setProjects(JSON.parse(e.newValue));
+        } else {
+          setProjects([]);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Poll for changes every 1 second
+    const interval = setInterval(fetchProjects, 1000);
+
+    // Refresh when window gains focus
+    const handleFocus = () => fetchProjects();
+    window.addEventListener('focus', handleFocus);
+    
+    // Set loading to false after initial render
     setTimeout(() => setIsLoading(false), 500);
-  }, []);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [fetchProjects]);
 
   // Control handlers
   const handleDeviceControl = (deviceId, controlKey) => {
@@ -1036,6 +1085,20 @@ const Dashboard = () => {
     }
   };
 
+  // Derive display data from stores
+  const displayStats = deviceStats || {
+    totalDevices: devices.length,
+    onlineDevices: devices.filter(d => d.status === 'online').length,
+    offlineDevices: devices.filter(d => d.status === 'offline').length,
+    totalSensors: devices.reduce((acc, d) => acc + (d.sensors?.length || 0), 0),
+    activeAlerts: alerts.filter(a => a.status === 'triggered').length,
+    energyUsage: 1250,
+  };
+
+  const displayAlerts = alerts || [];
+  const displayDevices = devices || [];
+  const isDashboardEmpty = displayDevices.length === 0;
+
   // Active alerts
   const activeAlerts = displayAlerts.filter(a => a.status === 'triggered');
   
@@ -1057,7 +1120,9 @@ const Dashboard = () => {
   ];
 
   // Health percentage
-  const healthPercentage = Math.round((displayStats.onlineDevices / displayStats.totalDevices) * 100);
+  const healthPercentage = displayStats.totalDevices > 0 
+    ? Math.round((displayStats.onlineDevices / displayStats.totalDevices) * 100) 
+    : 100;
 
   // Table columns
   const deviceColumns = [
@@ -1155,7 +1220,7 @@ const Dashboard = () => {
                 <span>⚡</span>
                 <div>
                   <div className="text-lg font-bold text-cyan-200">{displayStats.energyUsage}</div>
-                  <div className="text-xs text-cyan-200/60">mWh</div>
+                  <div className="text-xs text-cyan-200/60">kWh</div>
                 </div>
               </div>
             </div>
@@ -1177,13 +1242,13 @@ const Dashboard = () => {
           <button
             key={tab.id}
             onClick={() => setActiveWidgetTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap ${
               activeWidgetTab === tab.id
-                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/25 scale-105'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800 hover:scale-105'
             }`}
           >
-            <span>{tab.icon}</span>
+            <span className={`transition-transform duration-300 ${activeWidgetTab === tab.id ? 'scale-110' : ''}`}>{tab.icon}</span>
             <span>{tab.label}</span>
           </button>
         ))}
@@ -1196,25 +1261,93 @@ const Dashboard = () => {
         <div className="space-y-6">
           {/* Quick Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <ValueWidget title="Total Devices" value={displayStats.totalDevices} unit="" icon="📱" color="#06b6d4" trend={null} />
-            <ValueWidget title="Online Devices" value={displayStats.onlineDevices} unit="" icon="🟢" color="#10b981" trend={null} />
-            <ValueWidget title="Total Sensors" value={displayStats.totalSensors} unit="" icon="📡" color="#8b5cf6" trend={null} />
-            <ValueWidget title="Active Alerts" value={displayStats.activeAlerts} unit="" icon="🔔" color="#ef4444" trend={null} />
+            <div className="stagger-card"><ValueWidget title="Total Devices" value={displayStats.totalDevices} unit="" icon="📱" color="#06b6d4" trend={null} /></div>
+            <div className="stagger-card"><ValueWidget title="Online Devices" value={displayStats.onlineDevices} unit="" icon="🟢" color="#10b981" trend={null} /></div>
+            <div className="stagger-card"><ValueWidget title="Total Sensors" value={displayStats.totalSensors} unit="" icon="📡" color="#8b5cf6" trend={null} /></div>
+            <div className="stagger-card"><ValueWidget title="Active Alerts" value={displayStats.activeAlerts} unit="" icon="🔔" color="#ef4444" trend={null} /></div>
           </div>
 
+          {/* Projects Section */}
+          {projects.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <span className="w-1 h-6 bg-purple-500 rounded-full"></span>
+                Your Projects
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {projects.map((project) => (
+                  <div
+                    key={project.id}
+                    onClick={() => navigate('/projects')}
+                    className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 rounded-xl p-4 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/20 transition-all duration-300 cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                          <span className="text-xl">📁</span>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white">{project.name}</h4>
+                          <p className="text-xs text-slate-400">{project.category}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        project.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 text-slate-400'
+                      }`}>
+                        {project.status || 'Active'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-slate-400">
+                      <span>{project.device_count || 0} devices</span>
+                      <span>{project.description || 'No description'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Empty State */}
-          {isDashboardEmpty && (
+          {isDashboardEmpty && projects.length === 0 && (
             <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-slate-700/50 p-12 text-center">
               <div className="text-6xl mb-4">📡</div>
               <h3 className="text-xl font-bold text-white mb-2">No Devices Yet</h3>
               <p className="text-slate-400 mb-6">Add your first IoT device to start monitoring</p>
-              <button 
-                onClick={() => navigate('/devices')} 
-                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors inline-flex items-center gap-2"
-              >
-                <span>➕</span>
-                <span>Add Device</span>
-              </button>
+              <div className="flex justify-center gap-4">
+                <button 
+                  onClick={() => navigate('/projects')} 
+                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+                >
+                  <span>📁</span>
+                  <span>Create Project</span>
+                </button>
+                <button 
+                  onClick={() => navigate('/devices')} 
+                  className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+                >
+                  <span>➕</span>
+                  <span>Add Device</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Show projects even if no devices */}
+          {!isDashboardEmpty && projects.length === 0 && (
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-slate-700/50 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">Start Organizing Your Devices</h3>
+                  <p className="text-slate-400 text-sm">Create a project to group your IoT devices</p>
+                </div>
+                <button 
+                  onClick={() => navigate('/projects')} 
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+                >
+                  <span>📁</span>
+                  <span>Create Project</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -1514,7 +1647,7 @@ const Dashboard = () => {
             color="#06b6d4"
             type="bar"
             height={200}
-            unit="mWh"
+            unit="kWh"
           />
 
           {/* Additional Widgets Grid */}
@@ -1807,22 +1940,30 @@ const Dashboard = () => {
       {/* QUICK ACTIONS */}
       {/* ========================================== */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <button onClick={() => navigate('/devices')} className="bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
-          <span className="text-2xl group-hover:scale-110 transition-transform">➕</span>
-          <span className="text-sm">Add Device</span>
-        </button>
-        <button onClick={() => navigate('/alerts')} className="bg-gradient-to-r from-red-600 to-orange-700 hover:from-red-500 hover:to-orange-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
-          <span className="text-2xl group-hover:scale-110 transition-transform">🔔</span>
-          <span className="text-sm">View Alerts</span>
-        </button>
-        <button onClick={() => navigate('/developer')} className="bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
-          <span className="text-2xl group-hover:scale-110 transition-transform">📊</span>
-          <span className="text-sm">View Reports</span>
-        </button>
-        <button onClick={() => navigate('/settings')} className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
-          <span className="text-2xl group-hover:scale-110 transition-transform">⚙️</span>
-          <span className="text-sm">Settings</span>
-        </button>
+        <Tooltip content="Add a new IoT device to monitor">
+          <button onClick={() => navigate('/devices')} className="bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
+            <span className="text-2xl group-hover:scale-110 transition-transform">➕</span>
+            <span className="text-sm">Add Device</span>
+          </button>
+        </Tooltip>
+        <Tooltip content="View and manage triggered alerts">
+          <button onClick={() => navigate('/alerts')} className="bg-gradient-to-r from-red-600 to-orange-700 hover:from-red-500 hover:to-orange-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
+            <span className="text-2xl group-hover:scale-110 transition-transform">🔔</span>
+            <span className="text-sm">View Alerts</span>
+          </button>
+        </Tooltip>
+        <Tooltip content="View analytics and reports">
+          <button onClick={() => navigate('/developer')} className="bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
+            <span className="text-2xl group-hover:scale-110 transition-transform">📊</span>
+            <span className="text-sm">View Reports</span>
+          </button>
+        </Tooltip>
+        <Tooltip content="Configure account and device settings">
+          <button onClick={() => navigate('/settings')} className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-xl p-4 text-white font-medium transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 hover:-translate-y-1 flex flex-col items-center gap-2 group">
+            <span className="text-2xl group-hover:scale-110 transition-transform">⚙️</span>
+            <span className="text-sm">Settings</span>
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

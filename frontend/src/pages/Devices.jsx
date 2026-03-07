@@ -6,6 +6,7 @@ import wsService from '../services/websocket';
 import { format } from 'date-fns';
 import MicrocontrollerSelector from '../components/MicrocontrollerSelector';
 import { DEVICE_TYPES } from '../data/deviceTypes';
+import Tooltip from '../components/Tooltip';
 
 const Devices = () => {
   const { devices, pagination, setDevices, setLoading } = useDeviceStore();
@@ -97,28 +98,32 @@ const Devices = () => {
           <p className="text-gray-500">Manage your IoT devices</p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => setShowMcSelector(true)}
-            className="btn btn-secondary"
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-              Get Firmware
-            </span>
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="btn btn-primary"
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Device
-            </span>
-          </button>
+          <Tooltip content="Download firmware for your microcontroller">
+            <button
+              onClick={() => setShowMcSelector(true)}
+              className="btn btn-secondary"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                Get Firmware
+              </span>
+            </button>
+          </Tooltip>
+          <Tooltip content="Add a new IoT device to your account">
+            <button
+              onClick={() => setShowModal(true)}
+              className="btn btn-primary"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Device
+              </span>
+            </button>
+          </Tooltip>
         </div>
       </div>
 

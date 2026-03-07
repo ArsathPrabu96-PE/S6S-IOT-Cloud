@@ -3,6 +3,14 @@
 const { test } = require('tap')
 const { setup, connect, subscribe } = require('./helper')
 const aedes = require('../')
+const { validateTopic } = require('../lib/utils')
+
+test('validation of `null` topic', function (t) {
+  // issue #780
+  t.plan(1)
+  const err = validateTopic(null, 'SUBSCRIBE')
+  t.equal(err.message, 'impossible to SUBSCRIBE to an empty topic')
+})
 
 // [MQTT-4.7.1-3]
 test('Single-level wildcard should match empty level', function (t) {
@@ -108,7 +116,7 @@ test('publish invalid topic with +', function (t) {
       cmd: 'subscribe',
       messageId: 24,
       subscriptions: [{
-        topic: topic,
+        topic,
         qos: 0
       }]
     })
@@ -157,7 +165,7 @@ test('topics are case-sensitive', function (t) {
     ;['hello', 'HELLO', 'heLLo', 'HELLO/#', 'hello/+'].forEach(function (topic) {
       publisher.inStream.write({
         cmd: 'publish',
-        topic: topic,
+        topic,
         payload: 'world',
         qos: 0,
         retain: false
@@ -171,7 +179,7 @@ function subscribeMultipleTopics (t, broker, qos, subscriber, subscriptions, don
   subscriber.inStream.write({
     cmd: 'subscribe',
     messageId: 24,
-    subscriptions: subscriptions
+    subscriptions
   })
 
   subscriber.outStream.once('data', function (packet) {
@@ -183,7 +191,7 @@ function subscribeMultipleTopics (t, broker, qos, subscriber, subscriptions, don
       cmd: 'publish',
       topic: 'hello/world',
       payload: 'world',
-      qos: qos,
+      qos,
       messageId: 42
     })
 

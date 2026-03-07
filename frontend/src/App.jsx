@@ -9,6 +9,11 @@ import DeviceDetail from './pages/DeviceDetail';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Developer from './pages/Developer';
+import UserGuide from './pages/UserGuide';
+import Projects from './pages/Projects';
+import DeviceConnectivity from './pages/DeviceConnectivity';
+import DashboardBuilder from './pages/DashboardBuilder';
+import DashboardWizard from './pages/DashboardWizard';
 import OnboardingWizard from './components/OnboardingWizard';
 
 // Protected route wrapper
@@ -66,11 +71,16 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="dashboard-builder" element={<DashboardBuilder />} />
+          <Route path="dashboard-wizard" element={<DashboardWizard />} />
           <Route path="devices" element={<Devices />} />
           <Route path="devices/:id" element={<DeviceDetail />} />
+          <Route path="connectivity/:id" element={<DeviceConnectivity />} />
+          <Route path="projects" element={<Projects />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="settings" element={<Settings />} />
           <Route path="developer" element={<Developer />} />
+          <Route path="guide" element={<UserGuide />} />
         </Route>
         
         {/* Catch all */}

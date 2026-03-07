@@ -5,7 +5,7 @@ import { query, one, many, count } from '../config/database.js';
 export class User {
   // Create a new user
   static async create(userData) {
-    const { email, password, firstName, lastName, company, phone } = userData;
+    const { email, password, firstName, lastName, company, phone, role } = userData;
     
     const passwordHash = await bcrypt.hash(password, 12);
     const id = uuidv4();
@@ -17,7 +17,89 @@ export class User {
       [id, email, passwordHash, firstName, lastName, company, phone]
     );
     
+    // Assign default role
+    if (result.rows[0]) {
+      await User.assignRole(id, role || 'user');
+    }
+    
     return result.rows[0];
+  }
+
+  // Assign role to user
+  static async assignRole(userId, roleName) {
+    const role = await one(
+      `SELECT id FROM roles WHERE name = $1`,
+      [roleName]
+    );
+    
+    if (role) {
+      await query(
+        `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [userId, role.id]
+      );
+    }
+  }
+
+  // Get user roles
+  static async getRoles(userId) {
+    return many(
+      `SELECT r.* FROM roles r
+       JOIN user_roles ur ON ur.role_id = r.id
+       WHERE ur.user_id = $1`,
+      [userId]
+    );
+  }
+
+  // Check if user has role
+  static async hasRole(userId, roleName) {
+    const result = await query(
+      `SELECT COUNT(*) FROM roles r
+       JOIN user_roles ur ON ur.role_id = r.id
+       WHERE ur.user_id = $1 AND r.name = $2`,
+      [userId, roleName]
+    );
+    return parseInt(result.rows[0].count) > 0;
+  }
+
+  // Get user with roles
+  static async findById(id) {
+    const user = await one(
+      `SELECT id, email, first_name, last_name, company, phone, avatar_url, 
+              is_active, is_verified, email_verified_at, created_at
+       FROM users WHERE id = $1`,
+      [id]
+    );
+    
+    if (user) {
+      user.roles = await User.getRoles(id);
+      user.permissions = await User.getPermissions(id);
+    }
+    
+    return user;
+  }
+
+  // Get user permissions based on roles
+  static async getPermissions(userId) {
+    const permissions = await many(
+      `SELECT DISTINCT p.* FROM permissions p
+       JOIN role_permissions rp ON rp.permission_id = p.id
+       JOIN user_roles ur ON ur.role_id = rp.role_id
+       WHERE ur.user_id = $1`,
+      [userId]
+    );
+    return permissions.map(p => p.name);
+  }
+
+  // Check if user has specific permission
+  static async hasPermission(userId, permission) {
+    const result = await query(
+      `SELECT COUNT(*) FROM permissions p
+       JOIN role_permissions rp ON rp.permission_id = p.id
+       JOIN user_roles ur ON ur.role_id = rp.role_id
+       WHERE ur.user_id = $1 AND p.name = $2`,
+      [userId, permission]
+    );
+    return parseInt(result.rows[0].count) > 0;
   }
 
   // Find user by email
@@ -27,16 +109,6 @@ export class User {
               avatar_url, is_active, is_verified, email_verified_at, created_at
        FROM users WHERE email = $1`,
       [email]
-    );
-  }
-
-  // Find user by ID
-  static async findById(id) {
-    return one(
-      `SELECT id, email, first_name, last_name, company, phone, avatar_url, 
-              is_active, is_verified, email_verified_at, created_at
-       FROM users WHERE id = $1`,
-      [id]
     );
   }
 

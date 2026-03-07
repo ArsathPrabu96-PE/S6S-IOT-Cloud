@@ -5,16 +5,15 @@ const util = require('util')
 const parallel = require('fastparallel')
 const series = require('fastseries')
 const { v4: uuidv4 } = require('uuid')
-const bulk = require('bulk-write-stream')
 const reusify = require('reusify')
-const { pipeline } = require('readable-stream')
+const { pipeline } = require('stream')
 const Packet = require('aedes-packet')
 const memory = require('aedes-persistence')
 const mqemitter = require('mqemitter')
 const Client = require('./lib/client')
-const { $SYS_PREFIX } = require('./lib/utils')
+const { $SYS_PREFIX, bulk } = require('./lib/utils')
 
-module.exports = Aedes.Server = Aedes
+module.exports = Aedes.createBroker = Aedes
 
 const defaultOptions = {
   concurrency: 100,
@@ -30,7 +29,8 @@ const defaultOptions = {
   trustProxy: false,
   trustedProxies: [],
   queueLimit: 42,
-  maxClientsIdLength: 23
+  maxClientsIdLength: 23,
+  keepaliveLimit: 0
 }
 
 function Aedes (opts) {
@@ -48,6 +48,7 @@ function Aedes (opts) {
   this.counter = 0
   this.queueLimit = opts.queueLimit
   this.connectTimeout = opts.connectTimeout
+  this.keepaliveLimit = opts.keepaliveLimit
   this.maxClientsIdLength = opts.maxClientsIdLength
   this.mq = opts.mq || mqemitter({
     concurrency: opts.concurrency,
@@ -80,9 +81,18 @@ function Aedes (opts) {
   this.brokers = {}
 
   const heartbeatTopic = $SYS_PREFIX + that.id + '/heartbeat'
+  const birthTopic = $SYS_PREFIX + that.id + '/birth'
+
   this._heartbeatInterval = setInterval(heartbeat, opts.heartbeatInterval)
 
   const bufId = Buffer.from(that.id, 'utf8')
+
+  // in a cluster env this is used to warn other broker instances
+  // that this broker is alive
+  that.publish({
+    topic: birthTopic,
+    payload: bufId
+  }, noop)
 
   function heartbeat () {
     that.publish({
@@ -102,7 +112,7 @@ function Aedes (opts) {
 
     pipeline(
       that.persistence.streamWill(that.brokers),
-      bulk.obj(receiveWills),
+      bulk(receiveWills),
       function done (err) {
         if (err) {
           that.emit('error', err)
@@ -116,31 +126,42 @@ function Aedes (opts) {
   }
 
   function checkAndPublish (will, done) {
-    const needsPublishing =
-      !that.brokers[will.brokerId] ||
-      that.brokers[will.brokerId] + (3 * opts.heartbeatInterval) <
-      Date.now()
+    const notPublish =
+      that.brokers[will.brokerId] !== undefined && that.brokers[will.brokerId] + (3 * opts.heartbeatInterval) >= Date.now()
 
-    if (needsPublishing) {
-      // randomize this, so that multiple brokers
-      // do not publish the same wills at the same time
-      that.publish(will, function publishWill (err) {
-        if (err) {
-          return done(err)
-        }
+    if (notPublish) return done()
 
+    // randomize this, so that multiple brokers
+    // do not publish the same wills at the same time
+    this.authorizePublish(that.clients[will.clientId] || null, will, function (err) {
+      if (err) { return doneWill() }
+      that.publish(will, doneWill)
+
+      function doneWill (err) {
+        if (err) { return done(err) }
         that.persistence.delWill({
           id: will.clientId,
           brokerId: will.brokerId
         }, done)
-      })
-    } else {
-      done()
-    }
+      }
+    })
   }
 
   this.mq.on($SYS_PREFIX + '+/heartbeat', function storeBroker (packet, done) {
     that.brokers[packet.payload.toString()] = Date.now()
+    done()
+  })
+
+  this.mq.on($SYS_PREFIX + '+/birth', function brokerBorn (packet, done) {
+    const brokerId = packet.payload.toString()
+
+    // reset duplicates counter
+    if (brokerId !== that.id) {
+      for (const clientId in that.clients) {
+        delete that.clients[clientId].duplicates[brokerId]
+      }
+    }
+
     done()
   })
 
@@ -149,7 +170,13 @@ function Aedes (opts) {
     const clientId = packet.payload.toString()
 
     if (that.clients[clientId] && serverId !== that.id) {
-      that.clients[clientId].close(done)
+      if (that.clients[clientId].closed) {
+        // remove the client from the list if it is already closed
+        that.deleteClient(clientId)
+        done()
+      } else {
+        that.clients[clientId].close(done)
+      }
     } else {
       done()
     }
@@ -171,6 +198,7 @@ function storeRetained (packet, done) {
 }
 
 function emitPacket (packet, done) {
+  if (this.client) packet.clientId = this.client.id
   this.broker.mq.emit(packet, done)
 }
 
@@ -288,13 +316,17 @@ Aedes.prototype._finishRegisterClient = function (client) {
 }
 
 Aedes.prototype.unregisterClient = function (client) {
-  this.connectedClients--
-  delete this.clients[client.id]
+  this.deleteClient(client.id)
   this.emit('clientDisconnect', client)
   this.publish({
     topic: $SYS_PREFIX + this.id + '/disconnect/clients',
     payload: Buffer.from(client.id, 'utf8')
   }, noop)
+}
+
+Aedes.prototype.deleteClient = function (clientId) {
+  this.connectedClients--
+  delete this.clients[clientId]
 }
 
 function closeClient (client, cb) {

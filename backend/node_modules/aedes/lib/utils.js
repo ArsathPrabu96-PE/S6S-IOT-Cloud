@@ -1,14 +1,16 @@
 'use strict'
 
-const { Transform } = require('readable-stream')
+const { Transform, Writable } = require('stream')
 
 function validateTopic (topic, message) {
+  if (!topic || topic.length === 0) { // [MQTT-3.8.3-3]
+    return new Error('impossible to ' + message + ' to an empty topic')
+  }
+
   const end = topic.length - 1
   const endMinus = end - 1
   const slashInPreEnd = endMinus > 0 && topic.charCodeAt(endMinus) !== 47
-  if (topic.length === 0) { // [MQTT-3.8.3-3]
-    return new Error('impossible to ' + message + ' to an empty topic')
-  }
+
   for (let i = 0; i < topic.length; i++) {
     switch (topic.charCodeAt(i)) {
       case 35: { // #
@@ -37,8 +39,18 @@ function through (transform) {
   })
 }
 
+function bulk (fn) {
+  return new Writable({
+    objectMode: true,
+    writev: function (chunks, cb) {
+      fn(chunks.map(chunk => chunk.chunk), cb)
+    }
+  })
+}
+
 module.exports = {
   validateTopic,
   through,
+  bulk,
   $SYS_PREFIX: '$SYS/'
 }

@@ -1,8 +1,8 @@
 import mqtt from 'mqtt';
 import config from '../config/index.js';
-import { processSensorData } from '../models/SensorData.js';
-import { updateDeviceStatus } from '../models/Device.js';
-import { checkAlerts } from '../models/Alert.js';
+import Sensor from '../models/Sensor.js';
+import Device from '../models/Device.js';
+import { query } from '../config/database.js';
 
 class MqttService {
   constructor() {
@@ -89,11 +89,22 @@ class MqttService {
   async handleSensorData(deviceId, payload) {
     try {
       // Process and store sensor data
-      const savedData = await processSensorData(deviceId, payload);
-
-      // Check for alerts
-      if (savedData && savedData.length > 0) {
-        await checkAlerts(deviceId, savedData);
+      // Find device and its sensors
+      const device = await Device.findByUuid(deviceId);
+      
+      if (!device) {
+        console.log(`Device ${deviceId} not found`);
+        return;
+      }
+      
+      // Process each sensor data point
+      const readings = [];
+      for (const [identifier, value] of Object.entries(payload)) {
+        const sensor = await Sensor.findByDeviceAndIdentifier(device.id, identifier);
+        if (sensor) {
+          await Sensor.addReading(sensor.id, device.id, value);
+          readings.push({ sensor, value });
+        }
       }
 
       console.log(`📊 Sensor data received from ${deviceId}:`, payload);
@@ -105,16 +116,20 @@ class MqttService {
   async handleDeviceStatus(deviceId, payload) {
     try {
       const status = payload.status === 'online' ? 'online' : 'offline';
-      await updateDeviceStatus(deviceId, status);
+      const device = await Device.findByUuid(deviceId);
+      
+      if (device) {
+        await Device.update(device.id, { is_online: status === 'online' });
 
-      // Emit to WebSocket for real-time updates
-      const io = global.io;
-      if (io) {
-        io.to(`user:${payload.userId}`).emit('device_status', {
-          deviceId,
-          status,
-          timestamp: new Date(),
-        });
+        // Emit to WebSocket for real-time updates
+        const io = global.io;
+        if (io) {
+          io.to(`user:${device.user_id}`).emit('device_status', {
+            deviceId,
+            status,
+            timestamp: new Date(),
+          });
+        }
       }
 
       console.log(`📱 Device ${deviceId} status: ${status}`);
@@ -125,7 +140,10 @@ class MqttService {
 
   async handleHeartbeat(deviceId, payload) {
     try {
-      await updateDeviceStatus(deviceId, 'online', new Date());
+      const device = await Device.findByUuid(deviceId);
+      if (device) {
+        await Device.update(device.id, { is_online: true, last_seen: new Date() });
+      }
 
       console.log(`💓 Heartbeat from ${deviceId}`);
     } catch (error) {

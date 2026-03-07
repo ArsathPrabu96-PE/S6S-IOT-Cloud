@@ -1,7 +1,7 @@
 'use strict'
 
 const retimer = require('retimer')
-const { pipeline } = require('readable-stream')
+const { pipeline } = require('stream')
 const write = require('../write')
 const QoSPacket = require('../qos-packet')
 const { through } = require('../utils')
@@ -36,7 +36,8 @@ const errorMessages = [
   'identifier rejected',
   'Server unavailable',
   'bad user name or password',
-  'not authorized'
+  'not authorized',
+  'keep alive limit exceeded'
 ]
 
 function handleConnect (client, packet, done) {
@@ -66,11 +67,15 @@ function init (client, packet, done) {
   if (packet.protocolVersion === 3 && clientId.length > client.broker.maxClientsIdLength) {
     returnCode = 2
   }
+  // check if the client keepalive is compatible with broker settings
+  if (client.broker.keepaliveLimit && (!packet.keepalive || packet.keepalive > client.broker.keepaliveLimit)) {
+    returnCode = 6
+  }
   if (returnCode > 0) {
     const error = new Error(errorMessages[returnCode])
     error.errorCode = returnCode
     doConnack(
-      { client: client, returnCode: returnCode, sessionPresent: false },
+      { client, returnCode, sessionPresent: false },
       done.bind(this, error))
     return
   }
@@ -156,8 +161,8 @@ function fetchSubs (arg, done) {
   if (!this.packet.clean) {
     client.broker.persistence.subscriptionsByClient({
       id: client.id,
-      done: done,
-      arg: arg
+      done,
+      arg
     }, gotSubs)
     return
   }

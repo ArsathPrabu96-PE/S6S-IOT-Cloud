@@ -1,6 +1,6 @@
 # S6S IoT Platform - Universal IoT Cloud Platform
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 ## Architecture Overview
 
@@ -17,22 +17,21 @@ s6s-iot/
 │   │   ├── config/             # Configuration files
 │   │   ├── controllers/         # Route controllers
 │   │   ├── middleware/          # Express middleware
-│   │   ├── models/              # Database models
-│   │   ├── routes/              # API routes
-│   │   ├── services/            # Business logic
-│   │   ├── utils/               # Utility functions
-│   │   └── app.js              # Express app entry
+│   │   ├── models/             # Database models
+│   │   ├── routes/             # API routes
+│   │   ├── services/           # Business logic
+│   │   ├── utils/              # Utility functions
+│   │   └── app.js             # Express app entry
 │   ├── package.json
 │   └── .env.example
 ├── frontend/                   # React Dashboard
 │   ├── src/
-│   │   ├── components/          # React components
+│   │   ├── components/         # React components
 │   │   ├── pages/              # Page components
 │   │   ├── services/           # API services
 │   │   ├── hooks/              # Custom hooks
-│   │   ├── context/            # React context
-│   │   ├── utils/              # Utility functions
-│   │   ├── styles/             # CSS/Styles
+│   │   ├── context/            # React context (Zustand)
+│   │   ├── data/               # Data definitions
 │   │   └── App.jsx             # Main app component
 │   ├── package.json
 │   └── vite.config.js
@@ -41,6 +40,8 @@ s6s-iot/
 ├── database/                   # Database schemas
 │   ├── migrations/
 │   └── schemas/
+├── docs/                       # Documentation
+│   └── USER_GUIDE.md
 └── README.md
 ```
 
@@ -49,20 +50,77 @@ s6s-iot/
 - **Backend**: Node.js, Express.js
 - **Database**: PostgreSQL
 - **MQTT Broker**: Aedes (embedded) or Mosquitto
-- **Frontend**: React, Vite, Recharts, Tailwind CSS
+- **Frontend**: React, Vite, Recharts, Tailwind CSS, Zustand
 - **Authentication**: JWT tokens
+- **State Management**: Zustand
+- **Date Handling**: date-fns
 
 ## Features
 
 ### Core Features
 - User authentication (register, login, JWT)
-- Device registration (ESP32, ESP8266)
+- Social login (Google, GitHub)
+- Forgot/reset password functionality
+- Device registration (ESP32, ESP8266, and more)
 - MQTT sensor data ingestion
 - Real-time dashboard with WebSocket
 - Sensor data graphs (line, gauge charts)
 - Alert system with thresholds
 - Multi-device support
+- Project-based device organization
 - SaaS subscription plans (Free, Pro, Enterprise)
+
+### New Features (v1.1.0)
+
+#### Authentication
+- Social login with Google and GitHub
+- Forgot password with email reset
+- Session management with JWT
+
+#### Project Management
+- Create and manage IoT projects
+- Project categories (Smart Home, Industrial IoT, Agriculture, Healthcare)
+- Project-based device organization
+
+#### Dashboard Enhancements
+- **Tabbed Interface**: Overview, Devices, Controls, Analytics, Alarms
+- **Overview Tab**: Device statistics, health status, recent activity
+- **Devices Tab**: Grid view of all connected devices with status
+- **Controls Tab**: Interactive control widgets for relays and actuators
+- **Analytics Tab**: Detailed charts and data analysis
+- **Alarms Tab**: Centralized alarm notification center
+- **Dashboard Wizard**: 6-step guided process to create custom dashboards with project-based device selection and inline device creation
+
+#### Device Management
+- Enhanced device setup wizard
+- Device connectivity page with credentials
+- Auto-generated MQTT credentials
+- Device grouping by project
+
+#### Developer Options
+- **Firmware Generation**: Generate Arduino code for microcontrollers
+- **By Manufacturer Filter**: Browse microcontrollers grouped by manufacturer
+- **Connectivity Filters**: Filter by WiFi or Bluetooth capability
+- **12 Microcontrollers from 6 Manufacturers**:
+  - Espressif: ESP32, ESP32-S3, ESP32-C3, ESP8266
+  - Arduino: Arduino Uno R3, Arduino Nano 33 IoT, Arduino MKR WiFi 1010
+  - Raspberry Pi: Raspberry Pi Pico W, Raspberry Pi 4
+  - STMicroelectronics: STM32F103C8 (Blue Pill)
+  - Nordic Semiconductor: Nordic nRF52840
+  - PJRC: Teensy 4.0
+
+#### UI/UX Enhancements
+- Smooth page transitions and animations
+- Gradient backgrounds and glow effects
+- Loading skeleton animations
+- Micro-interactions on hover states
+- Tab navigation with scale effects
+- Responsive design
+
+#### Navigation
+- Scrolling sidebar for better navigation
+- User profile section in header (avatar, name, email)
+- Logout button in header
 
 ### Dashboard Features
 - **Home Tab**: Overview with device statistics, recent activity, system health
@@ -70,6 +128,7 @@ s6s-iot/
 - **Alerts Tab**: Alert configuration with localStorage persistence
 - **Analytics Tab**: Advanced sensor visualization with multiple widget types
 - **Settings Tab**: User profile and notification settings
+- **Dashboard Wizard**: Guided 6-step process to create custom dashboards
 
 ### Developer Options Features
 - **Endpoints Tab**: MQTT, HTTP, WebSocket endpoint configuration
@@ -167,20 +226,27 @@ cd frontend && npm run dev
 
 ### Device Connection
 
-1. Register a new account or login
-2. Add a new device from the Devices tab
-3. Configure your ESP32/ESP8266 device with the API credentials
-4. Send MQTT data to the configured topic
-5. View real-time data on the Dashboard
+1. Register a new account or login (or use social login)
+2. Create a new project or use existing one
+3. Add a new device from the Devices tab
+4. Configure your microcontroller device with the API credentials
+5. Send MQTT data to the configured topic
+6. View real-time data on the Dashboard
 
 ### API Endpoints
 
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
+- `POST /api/auth/google` - Google social login
+- `POST /api/auth/github` - GitHub social login
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset password
 - `GET /api/devices` - List all devices
 - `POST /api/devices` - Register new device
 - `GET /api/sensors/:deviceId` - Get sensor data
 - `POST /api/sensors/ingest` - Ingest sensor data
+- `GET /api/projects` - List all projects
+- `POST /api/projects` - Create new project
 
 ## Environment Variables
 
@@ -190,6 +256,10 @@ PORT=3000
 DATABASE_URL=postgresql://user:password@localhost:5432/s6s_iot
 JWT_SECRET=your_jwt_secret
 MQTT_BROKER_URL=mqtt://broker.hivemq.com:1883
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
 ```
 
 ### Frontend (.env)
@@ -206,7 +276,47 @@ VITE_WS_URL=ws://localhost:3000
 
 ## Recent Updates
 
-### Version 1.0.1 (Latest)
+### Version 1.1.0 (Latest)
+
+#### New Features
+- Social login (Google, GitHub)
+- Forgot/reset password functionality
+- Project creation wizard
+- Device setup wizard
+- Device connectivity page
+- Dashboard wizard flow with 6-step guided process
+- **Dashboard Wizard Features:**
+  - Project selection or creation
+  - Device selection with project-based filtering
+  - Inline device creation (add devices without leaving wizard)
+  - Alert configuration
+  - Developer options (API keys, webhooks)
+  - Widget selection
+  - Preview and save
+- Tabbed dashboard interface (Overview, Devices, Controls, Analytics, Alarms)
+- Device control widgets (relays, motors, actuators)
+- Firmware generation with "By Manufacturer" filter
+- 12 microcontrollers from 6 manufacturers
+
+#### UI/UX Enhancements
+- Smooth page transitions and animations
+- Gradient backgrounds and glow effects
+- Loading skeleton animations
+- Micro-interactions on hover states
+- Tab navigation with scale effects
+
+#### Navigation Improvements
+- Scrolling sidebar
+- User profile in header with avatar, name, email
+- Logout button in header
+
+#### Bug Fixes
+- Fixed Dashboard white screen issue
+- Fixed healthPercentage division by zero
+- Fixed project/device stats not updating
+- Fixed header layout issues
+
+### Version 1.0.1
 - Added Platform Integrations tab with BLYNK, ThingsBoard, Node-RED, Ubidots
 - Implemented working delete functionality across all Developer tabs
 - Added Analog Meter widget type with SVG needle animation
@@ -215,13 +325,21 @@ VITE_WS_URL=ws://localhost:3000
 - Implemented drag-and-drop widget canvas
 - Added staggered animations for widget templates
 
-### Dashboard Enhancements
+### Dashboard Enhancements (Earlier)
 - Neon glow effects and visual design improvements
 - Status cards with icons and color-coded indicators
 - Interactive charts with better styling
 - Responsive layout improvements
-- Better spacing and typography
-- Hover effects and transitions throughout
+
+## Coming Soon
+
+- AI anomaly detection
+- Predictive maintenance
+- OTA firmware updates
+- Digital twin visualization
+- Multi-device management
+- Edge computing support
+- Role-based team collaboration
 
 ## License
 

@@ -1,6 +1,7 @@
 'use strict'
 
 const { test } = require('tap')
+const mqemitter = require('mqemitter')
 const { setup, connect, subscribe } = require('./helper')
 const aedes = require('../')
 
@@ -16,7 +17,47 @@ test('publishes an hearbeat', function (t) {
     const id = message.topic.match(/\$SYS\/([^/]+)\/heartbeat/)[1]
     t.equal(id, broker.id, 'broker id matches')
     t.same(message.payload.toString(), id, 'message has id as the payload')
+    cb()
   })
+})
+
+test('publishes birth', function (t) {
+  t.plan(4)
+
+  const mq = mqemitter()
+  const brokerId = 'test-broker'
+  const fakeBroker = 'fake-broker'
+  const clientId = 'test-client'
+
+  mq.on(`$SYS/${brokerId}/birth`, (message, cb) => {
+    t.pass('broker birth received')
+    t.same(message.payload.toString(), brokerId, 'message has id as the payload')
+    cb()
+  })
+
+  const broker = aedes({
+    id: brokerId,
+    mq
+  })
+
+  broker.on('client', (client) => {
+    t.equal(client.id, clientId, 'client connected')
+    // set a fake counter on a fake broker
+    process.nextTick(() => {
+      broker.clients[clientId].duplicates[fakeBroker] = 42
+      mq.emit({ topic: `$SYS/${fakeBroker}/birth`, payload: Buffer.from(fakeBroker) })
+    })
+  })
+
+  mq.on(`$SYS/${fakeBroker}/birth`, (message, cb) => {
+    process.nextTick(() => {
+      t.equal(!!broker.clients[clientId].duplicates[fakeBroker], false, 'client duplicates has been resetted')
+      cb()
+    })
+  })
+
+  const s = connect(setup(broker), { clientId })
+  t.teardown(s.broker.close.bind(s.broker))
 })
 
 ;['$mcollina', '$SYS'].forEach(function (topic) {
@@ -161,7 +202,7 @@ test('Test backpressure aedes published function', function (t) {
 
   server.listen(0, function () {
     const port = server.address().port
-    publisher = mqtt.connect({ port: port, host: 'localhost', clean: true, keepalive: 30 })
+    publisher = mqtt.connect({ port, host: 'localhost', clean: true, keepalive: 30 })
 
     function next () {
       if (--publishCount > 0) { process.nextTick(publish) }
@@ -179,4 +220,23 @@ test('Test backpressure aedes published function', function (t) {
       server.close()
     })
   })
+})
+
+test('clear closed clients when the same clientId is managed by another broker', function (t) {
+  t.plan(2)
+
+  const clientId = 'closed-client'
+  const aedesBroker = aedes()
+
+  // simulate a closed client on the broker
+  aedesBroker.clients[clientId] = { closed: true, broker: aedesBroker }
+  aedesBroker.connectedClients = 1
+
+  // simulate the creation of the same client on another broker of the cluster
+  aedesBroker.publish({ topic: '$SYS/anotherbroker/new/clients', payload: clientId }, () => {
+    t.equal(aedesBroker.clients[clientId], undefined) // check that the closed client was removed
+    t.equal(aedesBroker.connectedClients, 0)
+  })
+
+  t.teardown(aedesBroker.close.bind(aedesBroker))
 })
